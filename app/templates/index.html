@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ежемесячные расходы</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>Ежемесячные расходы</h1>
+      <p class="sub">Валюта: UZS</p>
+
+      <section class="card">
+        <h2>Добавить расход</h2>
+        <form id="expenseForm">
+          <label>Категория
+            <select id="category" required></select>
+          </label>
+          <label>Сумма (UZS)
+            <input id="amount" type="number" min="1" step="1" required />
+          </label>
+          <label>Дата
+            <input id="expenseDate" type="date" required />
+          </label>
+          <label>Комментарий
+            <input id="note" type="text" maxlength="1024" placeholder="Необязательно" />
+          </label>
+          <button type="submit">Сохранить</button>
+        </form>
+        <p id="formStatus"></p>
+      </section>
+
+      <section class="card">
+        <h2>Сводка за месяц</h2>
+        <div class="filters">
+          <input id="year" type="number" min="2020" max="2100" value="{{ year }}" />
+          <input id="month" type="number" min="1" max="12" value="{{ month }}" />
+          <button id="reloadBtn">Обновить</button>
+        </div>
+        <p id="monthTotal"></p>
+        <ul id="categoryList"></ul>
+      </section>
+
+      <section class="card">
+        <h2>График по категориям</h2>
+        <canvas id="expenseChart"></canvas>
+      </section>
+    </main>
+
+    <script>
+      const tg = window.Telegram.WebApp;
+      tg.ready();
+      tg.expand();
+
+      const apiBase = "{{ api_base }}";
+      const initDataUnsafe = tg.initDataUnsafe || {};
+      const user = initDataUnsafe.user || {};
+
+      const headers = {
+        "Content-Type": "application/json",
+        "X-Telegram-User-Id": user.id || "",
+        "X-Telegram-Username": user.username || "",
+      };
+
+      const fmtUZS = (num) => `${new Intl.NumberFormat("ru-RU").format(num)} UZS`;
+
+      async function loadCategories() {
+        const res = await fetch(`${apiBase}/categories`);
+        const data = await res.json();
+        const select = document.getElementById("category");
+        select.innerHTML = "";
+        data.categories.forEach((c) => {
+          const opt = document.createElement("option");
+          opt.value = c.key;
+          opt.textContent = c.label_ru;
+          select.appendChild(opt);
+        });
+      }
+
+      let chart;
+      function drawChart(labels, values) {
+        const ctx = document.getElementById("expenseChart");
+        if (chart) chart.destroy();
+        chart = new Chart(ctx, {
+          type: "pie",
+          data: {
+            labels,
+            datasets: [{ data: values }],
+          },
+        });
+      }
+
+      async function loadSummary() {
+        const year = document.getElementById("year").value;
+        const month = document.getElementById("month").value;
+
+        const [summaryRes, chartRes] = await Promise.all([
+          fetch(`${apiBase}/summary/month?year=${year}&month=${month}`, { headers }),
+          fetch(`${apiBase}/summary/charts?year=${year}&month=${month}`, { headers }),
+        ]);
+
+        if (!summaryRes.ok) {
+          document.getElementById("monthTotal").textContent = "Ошибка доступа или загрузки данных";
+          return;
+        }
+
+        const summary = await summaryRes.json();
+        const chartData = await chartRes.json();
+
+        document.getElementById("monthTotal").textContent = `Всего за месяц: ${fmtUZS(summary.month_total_uzs)} (записей: ${summary.entry_count})`;
+
+        const list = document.getElementById("categoryList");
+        list.innerHTML = "";
+        summary.by_category.forEach((row) => {
+          const li = document.createElement("li");
+          li.textContent = `${row.category_label_ru}: ${fmtUZS(row.total_uzs)}`;
+          list.appendChild(li);
+        });
+
+        drawChart(chartData.labels, chartData.values);
+      }
+
+      document.getElementById("expenseForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const payload = {
+          category_key: document.getElementById("category").value,
+          amount_uzs: Number(document.getElementById("amount").value),
+          expense_date: document.getElementById("expenseDate").value,
+          note: document.getElementById("note").value || null,
+        };
+
+        const res = await fetch(`${apiBase}/expenses`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload),
+        });
+
+        const status = document.getElementById("formStatus");
+        if (res.ok) {
+          status.textContent = "Расход сохранен";
+          e.target.reset();
+          await loadSummary();
+        } else {
+          const err = await res.json();
+          status.textContent = `Ошибка: ${err.detail || "не удалось сохранить"}`;
+        }
+      });
+
+      document.getElementById("reloadBtn").addEventListener("click", loadSummary);
+
+      (async function init() {
+        const today = new Date().toISOString().slice(0, 10);
+        document.getElementById("expenseDate").value = today;
+        await loadCategories();
+        await loadSummary();
+      })();
+    </script>
+  </body>
+</html>
