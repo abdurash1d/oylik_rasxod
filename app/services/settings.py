@@ -20,6 +20,8 @@ def settings_out(record: UserSettings) -> SettingsOut:
         about=record.about,
         savings_target_pct=record.savings_target_pct,
         emergency_months=record.emergency_months,
+        savings_goal_uzs=record.savings_goal_uzs,
+        savings_goal_name=record.savings_goal_name,
         category_budgets=dict(record.category_budgets or {}),
     )
 
@@ -34,6 +36,10 @@ def update_settings(db: Session, user_id: int, payload: SettingsUpdate) -> UserS
         record.savings_target_pct = payload.savings_target_pct
     if payload.emergency_months is not None:
         record.emergency_months = payload.emergency_months
+    if payload.savings_goal_uzs is not None:
+        record.savings_goal_uzs = payload.savings_goal_uzs
+    if "savings_goal_name" in payload.model_fields_set:
+        record.savings_goal_name = (payload.savings_goal_name or "").strip() or None
     if payload.category_budgets is not None:
         # reassign a fresh dict so SQLAlchemy detects the JSON change
         record.category_budgets = dict(payload.category_budgets)

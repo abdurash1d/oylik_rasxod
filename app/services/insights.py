@@ -3,11 +3,11 @@ from typing import List
 
 from sqlalchemy.orm import Session
 
-from app.schemas import Insight, InsightsResponse
+from app.schemas import BudgetProgress, GoalProgress, Insight, InsightsResponse
 from app.services.debts import list_debts
 from app.services.expenses import monthly_summary
 from app.services.settings import get_or_create_settings
-from app.services.stats import month_totals, prev_month, savings_rate
+from app.services.stats import month_totals, prev_month, savings_rate, total_saved
 
 # Display order: most urgent first.
 _SEVERITY_ORDER = {"bad": 0, "warn": 1, "info": 2, "good": 3}
@@ -41,6 +41,25 @@ def build_insights(db: Session, user_id: int, year: int, month: int) -> Insights
     rate = savings_rate(income, expense)
     level = _savings_level(income, rate, savings_target)
 
+    # Budget progress (for every budgeted category) and savings-goal progress.
+    budgets_progress = []
+    for cat in summary.by_category:
+        limit = budgets.get(cat.category_key)
+        if limit:
+            budgets_progress.append(BudgetProgress(
+                category_key=cat.category_key, spent_uzs=cat.total_uzs,
+                limit_uzs=int(limit), pct=round(cat.total_uzs / limit * 100),
+            ))
+    goal = None
+    if settings.savings_goal_uzs > 0:
+        saved_total = total_saved(db, user_id)
+        goal = GoalProgress(
+            name=settings.savings_goal_name,
+            target_uzs=settings.savings_goal_uzs,
+            saved_uzs=saved_total,
+            pct=round(saved_total / settings.savings_goal_uzs * 100),
+        )
+
     insights: List[Insight] = []
 
     # No activity yet.
@@ -49,7 +68,7 @@ def build_insights(db: Session, user_id: int, year: int, month: int) -> Insights
         return InsightsResponse(
             savings_rate_pct=rate, savings_level=level,
             income_total_uzs=income, expense_total_uzs=expense, saved_uzs=saved,
-            insights=insights,
+            goal=goal, budgets=budgets_progress, insights=insights,
         )
 
     # Overspending.
@@ -128,5 +147,5 @@ def build_insights(db: Session, user_id: int, year: int, month: int) -> Insights
     return InsightsResponse(
         savings_rate_pct=rate, savings_level=level,
         income_total_uzs=income, expense_total_uzs=expense, saved_uzs=saved,
-        insights=insights,
+        goal=goal, budgets=budgets_progress, insights=insights,
     )

@@ -25,6 +25,21 @@ def month_totals(db: Session, user_id: int, year: int, month: int) -> Tuple[int,
     return int(income or 0), int(expense or 0)
 
 
+def total_saved(db: Session, user_id: int) -> int:
+    """Lifetime accumulated savings: all income minus all expenses."""
+    income = (
+        db.query(func.coalesce(func.sum(Income.amount_uzs), 0))
+        .filter(Income.user_id == user_id)
+        .scalar()
+    )
+    expense = (
+        db.query(func.coalesce(func.sum(Expense.amount_uzs), 0))
+        .filter(Expense.user_id == user_id)
+        .scalar()
+    )
+    return int(income or 0) - int(expense or 0)
+
+
 def savings_rate(income: int, expense: int) -> int:
     """Saved share of income as a whole-number percent (can be negative)."""
     if income <= 0:

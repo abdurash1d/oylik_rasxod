@@ -15,6 +15,8 @@ class UserSettings(Base):
     about: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
     savings_target_pct: Mapped[int] = mapped_column(Integer, nullable=False, default=20)
     emergency_months: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
+    savings_goal_uzs: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    savings_goal_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
     # { category_key: monthly_limit_uzs }
     category_budgets: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

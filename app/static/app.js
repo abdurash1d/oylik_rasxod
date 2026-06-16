@@ -454,8 +454,39 @@
     }
     verdict.textContent = t("savings_" + data.savings_level);
   }
+  function renderGoal(goal) {
+    const card = $("goalCard");
+    if (!goal) { card.hidden = true; return; }
+    card.hidden = false;
+    $("goalName").textContent = goal.name || t("settings_goal");
+    $("goalPct").textContent = goal.pct + "%";
+    $("goalFill").style.width = Math.max(0, Math.min(100, goal.pct)) + "%";
+    $("goalSub").textContent = t("goal_progress", {
+      saved: fmtAmount(goal.saved_uzs), target: fmtAmount(goal.target_uzs),
+    });
+  }
+  function renderBudgetProgress(budgets) {
+    const card = $("budgetProgressCard");
+    const list = $("budgetProgressList");
+    if (!budgets || !budgets.length) { card.hidden = true; return; }
+    card.hidden = false;
+    list.innerHTML = budgets.map((b) => {
+      const over = b.spent_uzs > b.limit_uzs;
+      const w = Math.max(0, Math.min(100, b.pct));
+      return `
+        <div class="bp-row">
+          <div class="bp-meta">
+            <span>${escapeHtml(catLabelByKey(b.category_key))}</span>
+            <span class="${over ? "over" : ""}">${fmtAmount(b.spent_uzs)} / ${fmtAmount(b.limit_uzs)} · ${b.pct}%</span>
+          </div>
+          <div class="bp-bar"><div class="bp-fill${over ? " over" : ""}" style="width:${w}%"></div></div>
+        </div>`;
+    }).join("");
+  }
   function renderInsights(data) {
     renderSavingsHero(data);
+    renderGoal(data.goal);
+    renderBudgetProgress(data.budgets);
     const list = $("insightList");
     list.innerHTML = "";
     for (const i of data.insights || []) {
@@ -846,6 +877,8 @@
     $("setAbout").value = lastSettings.about || "";
     $("setSavings").value = lastSettings.savings_target_pct;
     $("setEmergency").value = lastSettings.emergency_months;
+    $("setGoalName").value = lastSettings.savings_goal_name || "";
+    $("setGoalAmount").value = lastSettings.savings_goal_uzs || "";
     buildBudgetList();
     updateThemeSeg();
     updateLangSeg();
@@ -874,6 +907,8 @@
       about: $("setAbout").value || null,
       savings_target_pct: Number($("setSavings").value),
       emergency_months: Number($("setEmergency").value),
+      savings_goal_name: $("setGoalName").value || null,
+      savings_goal_uzs: Number($("setGoalAmount").value) || 0,
       category_budgets: budgets,
     };
     try {

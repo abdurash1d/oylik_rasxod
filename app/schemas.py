@@ -235,6 +235,8 @@ class SettingsOut(BaseModel):
     about: Optional[str]
     savings_target_pct: int
     emergency_months: int
+    savings_goal_uzs: int
+    savings_goal_name: Optional[str]
     category_budgets: Dict[str, int]
 
 
@@ -243,6 +245,8 @@ class SettingsUpdate(BaseModel):
     about: Optional[str] = Field(default=None, max_length=1024)
     savings_target_pct: Optional[int] = Field(default=None, ge=0, le=100)
     emergency_months: Optional[int] = Field(default=None, ge=1, le=24)
+    savings_goal_uzs: Optional[int] = Field(default=None, ge=0)
+    savings_goal_name: Optional[str] = Field(default=None, max_length=120)
     category_budgets: Optional[Dict[str, int]] = None
 
     @field_validator("category_budgets")
@@ -288,12 +292,28 @@ class Insight(BaseModel):
     params: Dict[str, Any] = {}
 
 
+class GoalProgress(BaseModel):
+    name: Optional[str]
+    target_uzs: int
+    saved_uzs: int
+    pct: int
+
+
+class BudgetProgress(BaseModel):
+    category_key: str
+    spent_uzs: int
+    limit_uzs: int
+    pct: int
+
+
 class InsightsResponse(BaseModel):
     savings_rate_pct: int
     savings_level: str  # good | ok | low | none
     income_total_uzs: int
     expense_total_uzs: int
     saved_uzs: int
+    goal: Optional[GoalProgress] = None
+    budgets: List[BudgetProgress] = []
     insights: List[Insight]
 
 

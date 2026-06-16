@@ -65,6 +65,39 @@ def test_configurable_savings_target_changes_level():
     assert build_insights(db, uid, 2026, 6).savings_level == "ok"  # 25 >= 20 (half of 40)
 
 
+def test_savings_goal_progress():
+    db, uid = make_db()
+    create_income(db, uid, IncomeCreate(income_type_key=IncomeType.SALARY.value, amount_uzs=1_000_000, income_date=date(2026, 5, 1), note=None))
+    create_income(db, uid, IncomeCreate(income_type_key=IncomeType.SALARY.value, amount_uzs=1_000_000, income_date=date(2026, 6, 1), note=None))
+    create_expense(db, uid, ExpenseCreate(category_key="food_groceries", amount_uzs=500_000, expense_date=date(2026, 6, 3), note=None))
+    # lifetime saved = 2_000_000 - 500_000 = 1_500_000
+    update_settings(db, uid, SettingsUpdate(savings_goal_uzs=3_000_000, savings_goal_name="Car"))
+    resp = build_insights(db, uid, 2026, 6)
+    assert resp.goal is not None
+    assert resp.goal.name == "Car"
+    assert resp.goal.target_uzs == 3_000_000
+    assert resp.goal.saved_uzs == 1_500_000
+    assert resp.goal.pct == 50
+
+
+def test_no_goal_when_unset():
+    db, uid = make_db()
+    create_income(db, uid, IncomeCreate(income_type_key=IncomeType.SALARY.value, amount_uzs=1_000_000, income_date=date(2026, 6, 1), note=None))
+    assert build_insights(db, uid, 2026, 6).goal is None
+
+
+def test_budget_progress_list():
+    db, uid = make_db()
+    create_income(db, uid, IncomeCreate(income_type_key=IncomeType.SALARY.value, amount_uzs=2_000_000, income_date=date(2026, 6, 1), note=None))
+    create_expense(db, uid, ExpenseCreate(category_key="food_groceries", amount_uzs=300_000, expense_date=date(2026, 6, 3), note=None))
+    update_settings(db, uid, SettingsUpdate(category_budgets={"food_groceries": 600_000}))
+    resp = build_insights(db, uid, 2026, 6)
+    bp = next(b for b in resp.budgets if b.category_key == "food_groceries")
+    assert bp.spent_uzs == 300_000
+    assert bp.limit_uzs == 600_000
+    assert bp.pct == 50
+
+
 def test_budget_over_insight():
     db, uid = make_db()
     create_income(db, uid, IncomeCreate(income_type_key=IncomeType.SALARY.value, amount_uzs=2_000_000, income_date=date(2026, 6, 1), note=None))

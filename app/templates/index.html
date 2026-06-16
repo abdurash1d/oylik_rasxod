@@ -163,9 +163,24 @@
         <div class="savings-verdict" id="savingsVerdict"></div>
       </section>
 
+      <section class="card goal-card" id="goalCard" hidden>
+        <div class="section-label" data-i18n="settings_goal">ЦЕЛЬ НАКОПЛЕНИЯ</div>
+        <div class="goal-head">
+          <span class="goal-name" id="goalName"></span>
+          <span class="goal-pct" id="goalPct"></span>
+        </div>
+        <div class="goal-bar"><div class="goal-fill" id="goalFill"></div></div>
+        <div class="goal-sub" id="goalSub"></div>
+      </section>
+
       <section class="card">
         <div class="section-label" data-i18n="trend_title">ДОХОД И РАСХОД · 6 МЕС</div>
         <div id="trendChart" class="trend-chart"></div>
+      </section>
+
+      <section class="card" id="budgetProgressCard" hidden>
+        <div class="section-label" data-i18n="budgets_progress_title">БЮДЖЕТЫ</div>
+        <div id="budgetProgressList" class="budget-progress-list"></div>
       </section>
 
       <section class="card">
@@ -237,6 +252,18 @@
             <input id="setEmergency" type="number" min="1" max="24" step="1" />
           </label>
         </div>
+      </section>
+
+      <section class="card settings-section">
+        <div class="section-label" data-i18n="settings_goal">ЦЕЛЬ НАКОПЛЕНИЯ</div>
+        <label class="set-field">
+          <span data-i18n="f_goal_name">Название цели</span>
+          <input id="setGoalName" type="text" maxlength="120" data-i18n-ph="optional" placeholder="необязательно" />
+        </label>
+        <label class="set-field">
+          <span data-i18n="f_goal_amount">Сумма цели (сум)</span>
+          <input id="setGoalAmount" type="number" min="0" step="1000" />
+        </label>
       </section>
 
       <section class="card settings-section">
