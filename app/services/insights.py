@@ -6,35 +6,40 @@ from sqlalchemy.orm import Session
 from app.schemas import Insight, InsightsResponse
 from app.services.debts import list_debts
 from app.services.expenses import monthly_summary
+from app.services.settings import get_or_create_settings
 from app.services.stats import month_totals, prev_month, savings_rate
 
 # Display order: most urgent first.
 _SEVERITY_ORDER = {"bad": 0, "warn": 1, "info": 2, "good": 3}
 
-# Recommended ceilings used by the rules.
-SAVINGS_TARGET_PCT = 20
+# Fixed thresholds (savings target and emergency months are user-configurable).
 TOP_CATEGORY_PCT = 35
 TREND_DELTA_PCT = 15
-EMERGENCY_FUND_MONTHS = 3
+MAX_BUDGET_ALERTS = 3
 
 
-def _savings_level(income: int, rate: int) -> str:
+def _savings_level(income: int, rate: int, target: int) -> str:
     if income <= 0:
         return "none"
-    if rate >= SAVINGS_TARGET_PCT:
+    if rate >= target:
         return "good"
-    if rate >= 10:
+    if rate >= round(target / 2):
         return "ok"
     return "low"
 
 
 def build_insights(db: Session, user_id: int, year: int, month: int) -> InsightsResponse:
+    settings = get_or_create_settings(db, user_id)
+    savings_target = settings.savings_target_pct
+    emergency_months = settings.emergency_months
+    budgets = settings.category_budgets or {}
+
     summary = monthly_summary(db, user_id, year, month)
     income = summary.income_total_uzs
     expense = summary.expense_total_uzs
     saved = summary.balance_uzs
     rate = savings_rate(income, expense)
-    level = _savings_level(income, rate)
+    level = _savings_level(income, rate, savings_target)
 
     insights: List[Insight] = []
 
@@ -53,11 +58,29 @@ def build_insights(db: Session, user_id: int, year: int, month: int) -> Insights
 
     # Savings rate verdict.
     if income > 0:
-        sev = "good" if rate >= SAVINGS_TARGET_PCT else "info" if rate >= 10 else "warn"
+        sev = "good" if rate >= savings_target else "info" if rate >= round(savings_target / 2) else "warn"
         insights.append(Insight(
             code="savings_rate", severity=sev,
-            params={"pct": rate, "target": SAVINGS_TARGET_PCT, "saved": saved},
+            params={"pct": rate, "target": savings_target, "saved": saved},
         ))
+
+    # Category budgets exceeded.
+    budget_alerts = 0
+    for cat in summary.by_category:
+        limit = budgets.get(cat.category_key)
+        if limit and cat.total_uzs > limit:
+            insights.append(Insight(
+                code="budget_over", severity="warn",
+                params={
+                    "category_key": cat.category_key,
+                    "spent": cat.total_uzs,
+                    "limit": int(limit),
+                    "pct": round(cat.total_uzs / limit * 100),
+                },
+            ))
+            budget_alerts += 1
+            if budget_alerts >= MAX_BUDGET_ALERTS:
+                break
 
     # Concentrated spending in one category.
     if expense > 0 and summary.by_category:
@@ -81,7 +104,7 @@ def build_insights(db: Session, user_id: int, year: int, month: int) -> Insights
 
     # Emergency fund guidance (safe, conservative target).
     if expense > 0:
-        target = expense * EMERGENCY_FUND_MONTHS
+        target = expense * emergency_months
         if saved > 0:
             insights.append(Insight(
                 code="emergency_fund", severity="info",
@@ -96,7 +119,7 @@ def build_insights(db: Session, user_id: int, year: int, month: int) -> Insights
         insights.append(Insight(code="debt_lent", severity="info", params={"amount": totals.lent_outstanding}))
 
     # Positive reinforcement when things look healthy.
-    if income > 0 and expense <= income and rate >= SAVINGS_TARGET_PCT \
+    if income > 0 and expense <= income and rate >= savings_target \
             and not any(i.severity in ("bad", "warn") for i in insights):
         insights.append(Insight(code="doing_great", severity="good", params={"pct": rate}))
 
