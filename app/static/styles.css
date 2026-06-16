@@ -624,6 +624,55 @@ input, select, button, textarea { font-family: inherit; }
   outline-offset: 2px;
 }
 
+/* ===== Analytics: savings hero ===== */
+.savings-hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; padding: 22px 16px; }
+.savings-rate {
+  font-family: var(--font-display);
+  font-size: 46px; font-weight: 800; letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+  color: var(--text);
+}
+.savings-rate.good { color: var(--income); text-shadow: 0 0 26px rgba(52, 211, 153, 0.35); }
+.savings-rate.ok { color: var(--brand); text-shadow: 0 0 26px rgba(45, 212, 191, 0.30); }
+.savings-rate.low { color: #f59e0b; text-shadow: 0 0 26px rgba(245, 158, 11, 0.28); }
+.savings-verdict { font-size: 13px; color: var(--muted); font-weight: 500; }
+
+/* ===== Analytics: trend chart ===== */
+.trend-chart { display: flex; flex-direction: column; gap: 10px; }
+.trend-cols { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; height: 104px; }
+.trend-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; }
+.trend-bars { flex: 1; display: flex; align-items: flex-end; justify-content: center; gap: 3px; width: 100%; }
+.trend-bar { width: 9px; border-radius: 4px 4px 2px 2px; min-height: 2px; transition: height 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
+.trend-bar.inc { background: linear-gradient(180deg, var(--brand), var(--brand-2)); box-shadow: 0 0 10px rgba(45, 212, 191, 0.3); }
+.trend-bar.exp { background: linear-gradient(180deg, #fb7185, #f43f5e); box-shadow: 0 0 10px rgba(251, 113, 133, 0.25); }
+.trend-label { font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.trend-legend { display: flex; gap: 16px; justify-content: center; font-size: 12px; color: var(--muted); }
+.trend-legend .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+.trend-legend .dot.inc { background: var(--brand); }
+.trend-legend .dot.exp { background: var(--expense); }
+
+/* ===== Analytics: recommendation cards ===== */
+.insight-list { display: flex; flex-direction: column; gap: 10px; }
+.insight-card {
+  display: flex; gap: 12px; align-items: flex-start;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: var(--inset-hi);
+}
+.insight-card.sev-bad { border-left-color: var(--expense); }
+.insight-card.sev-warn { border-left-color: #f59e0b; }
+.insight-card.sev-info { border-left-color: var(--brand); }
+.insight-card.sev-good { border-left-color: var(--income); }
+.insight-icon { font-size: 18px; line-height: 1.3; flex-shrink: 0; }
+.insight-body { display: flex; flex-direction: column; gap: 2px; }
+.insight-title { font-family: var(--font-display); font-weight: 700; font-size: 14px; }
+.insight-msg { font-size: 13px; color: var(--muted); line-height: 1.4; }
+.disclaimer { font-size: 11px; color: var(--muted); text-align: center; opacity: 0.8; margin: 2px 8px 0; }
+
 /* ===== Reduced motion ===== */
 @media (prefers-reduced-motion: reduce) {
   body::before { animation: none; }

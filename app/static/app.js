@@ -39,7 +39,16 @@
   let lastSummary = null;
   let lastDebts = null;
   let debtsLoaded = false;
+  let lastInsights = null;
+  let lastTrend = null;
+  let insightsLoaded = false;
   let modalMode = null; // {kind:'debt',direction} | {kind:'repayment',debtId,person}
+
+  const INSIGHT_ICONS = {
+    overspend: "⚠️", savings_rate: "💰", top_category: "📊",
+    trend_up: "📈", trend_down: "📉", emergency_fund: "🛟",
+    debt_owe: "🔻", debt_lent: "🔺", doing_great: "🎉", no_data: "📭",
+  };
 
   // ---- Helpers ----
   const numFmt = new Intl.NumberFormat("ru-RU");
@@ -82,6 +91,11 @@
     const arr = MONTHS[getLang()] || MONTHS.ru;
     return arr[(month - 1 + 12) % 12] || "";
   }
+  function monthShort(month) { return monthName(month).slice(0, 3); }
+  function catLabelByKey(key) {
+    const c = categories.find((x) => x.key === key);
+    return c ? label(c) : key;
+  }
 
   // ---- i18n application ----
   function applyStaticI18n() {
@@ -102,6 +116,8 @@
     if (lastSummary) { renderRing(lastSummary); renderCategoryBars(lastSummary); }
     loadLedger();
     if (lastDebts) renderDebts(lastDebts);
+    if (lastInsights) renderInsights(lastInsights);
+    if (lastTrend) renderTrend(lastTrend);
   }
 
   // ---- Categories / income types ----
@@ -299,6 +315,7 @@
 
   async function refreshReport() {
     await Promise.all([loadSummary(), loadLedger()]);
+    refreshInsightsIfLoaded();
   }
 
   // ---- Debts ----
@@ -367,6 +384,103 @@
     } catch {
       $("debtStatus").textContent = t("err_load_debts");
     }
+  }
+
+  // ---- Insights / analytics ----
+  function insightContent(i) {
+    const p = i.params || {};
+    const tp = {};
+    // Amount-like params are formatted; {target} as a percent (e.g. 20) also
+    // formats safely through fmtAmount.
+    ["over", "saved", "amount", "target"].forEach((k) => { if (p[k] != null) tp[k] = fmtAmount(p[k]); });
+    if (p.pct != null) tp.pct = p.pct;
+    if (p.months != null) tp.months = p.months;
+    if (p.category_key != null) tp.label = catLabelByKey(p.category_key);
+    return {
+      icon: INSIGHT_ICONS[i.code] || "•",
+      title: t("ins_" + i.code + "_title", tp),
+      msg: t("ins_" + i.code + "_msg", tp),
+    };
+  }
+  function renderSavingsHero(data) {
+    const el = $("savingsRate");
+    const verdict = $("savingsVerdict");
+    if (data.savings_level === "none") {
+      el.textContent = "—";
+      el.className = "savings-rate";
+    } else {
+      el.textContent = data.savings_rate_pct + "%";
+      const cls = data.savings_level === "good" ? "good" : data.savings_level === "ok" ? "ok" : "low";
+      el.className = "savings-rate " + cls;
+    }
+    verdict.textContent = t("savings_" + data.savings_level);
+  }
+  function renderInsights(data) {
+    renderSavingsHero(data);
+    const list = $("insightList");
+    list.innerHTML = "";
+    for (const i of data.insights || []) {
+      const c = insightContent(i);
+      const card = document.createElement("div");
+      card.className = "insight-card sev-" + i.severity;
+      card.innerHTML = `
+        <div class="insight-icon">${c.icon}</div>
+        <div class="insight-body">
+          <div class="insight-title">${escapeHtml(c.title)}</div>
+          <div class="insight-msg">${escapeHtml(c.msg)}</div>
+        </div>`;
+      list.appendChild(card);
+    }
+  }
+  function renderTrend(data) {
+    const wrap = $("trendChart");
+    const months = data.months || [];
+    const max = Math.max(1, ...months.map((m) => Math.max(m.income_total_uzs, m.expense_total_uzs)));
+    const cols = months.map((m) => {
+      const incH = Math.round((m.income_total_uzs / max) * 100);
+      const expH = Math.round((m.expense_total_uzs / max) * 100);
+      return `
+        <div class="trend-col">
+          <div class="trend-bars">
+            <div class="trend-bar inc" style="height:${incH}%" title="${fmtAmount(m.income_total_uzs)}"></div>
+            <div class="trend-bar exp" style="height:${expH}%" title="${fmtAmount(m.expense_total_uzs)}"></div>
+          </div>
+          <div class="trend-label">${escapeHtml(monthShort(m.month))}</div>
+        </div>`;
+    }).join("");
+    wrap.innerHTML = `
+      <div class="trend-cols">${cols}</div>
+      <div class="trend-legend">
+        <span><i class="dot inc"></i>${escapeHtml(t("income"))}</span>
+        <span><i class="dot exp"></i>${escapeHtml(t("seg_expense"))}</span>
+      </div>`;
+  }
+  async function loadInsights() {
+    const { year, month } = currentFilters();
+    try {
+      const res = await fetch(`${apiBase}/insights?year=${year}&month=${month}`, { headers });
+      if (!res.ok) throw new Error();
+      lastInsights = await res.json();
+      insightsLoaded = true;
+      $("insightStatus").textContent = "";
+      renderInsights(lastInsights);
+    } catch {
+      $("insightStatus").textContent = t("err_load_insights");
+    }
+  }
+  async function loadTrend() {
+    const { year, month } = currentFilters();
+    try {
+      const res = await fetch(`${apiBase}/stats/trend?year=${year}&month=${month}&months=6`, { headers });
+      if (!res.ok) throw new Error();
+      lastTrend = await res.json();
+      renderTrend(lastTrend);
+    } catch {
+      /* trend is secondary; leave previous render in place */
+    }
+  }
+  function refreshInsightsIfLoaded() {
+    if (insightsLoaded) { loadInsights(); loadTrend(); }
   }
 
   // ---- Modal ----
@@ -480,8 +594,10 @@
           b.setAttribute("aria-selected", on ? "true" : "false");
         });
         $("tab-report").hidden = tab !== "report";
+        $("tab-insights").hidden = tab !== "insights";
         $("tab-debts").hidden = tab !== "debts";
         if (tab === "debts" && !debtsLoaded) loadDebts();
+        if (tab === "insights") { loadInsights(); loadTrend(); }
       });
     });
   }

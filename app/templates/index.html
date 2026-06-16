@@ -54,6 +54,7 @@
     <!-- Tabs -->
     <nav class="tabbar" role="tablist">
       <button type="button" class="tab-btn active" role="tab" aria-selected="true" data-tab="report" data-i18n="tab_report">Отчёт</button>
+      <button type="button" class="tab-btn" role="tab" aria-selected="false" data-tab="insights" data-i18n="tab_insights">Аналитика</button>
       <button type="button" class="tab-btn" role="tab" aria-selected="false" data-tab="debts" data-i18n="tab_debts">Долги</button>
     </nav>
 
@@ -147,6 +148,30 @@
         <p id="ledgerStatus" class="status" role="status"></p>
         <div id="ledgerList"></div>
       </section>
+
+    </div>
+
+    <!-- ===== ANALYTICS TAB ===== -->
+    <div id="tab-insights" class="tab-panel" role="tabpanel" hidden>
+
+      <section class="card savings-hero">
+        <div class="section-label" data-i18n="savings_title">НОРМА СБЕРЕЖЕНИЙ</div>
+        <div class="savings-rate" id="savingsRate">—</div>
+        <div class="savings-verdict" id="savingsVerdict"></div>
+      </section>
+
+      <section class="card">
+        <div class="section-label" data-i18n="trend_title">ДОХОД И РАСХОД · 6 МЕС</div>
+        <div id="trendChart" class="trend-chart"></div>
+      </section>
+
+      <section class="card">
+        <div class="section-label" data-i18n="recs_title">РЕКОМЕНДАЦИИ</div>
+        <p id="insightStatus" class="status" role="status"></p>
+        <div id="insightList" class="insight-list"></div>
+      </section>
+
+      <p class="disclaimer" data-i18n="advice_disclaimer">Это общие советы по бюджету, а не финансовая консультация.</p>
 
     </div>
 
