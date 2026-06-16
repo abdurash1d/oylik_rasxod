@@ -45,6 +45,25 @@
   const numFmt = new Intl.NumberFormat("ru-RU");
   const fmtAmount = (n) => numFmt.format(n || 0);
   const $ = (id) => document.getElementById(id);
+
+  // Count-up tween for hero numbers; no-op re-render when value is unchanged.
+  function animateCount(el, target, format) {
+    const prev = el.__countVal || 0;
+    if (prev === target) { el.textContent = format(target); el.__countVal = target; return; }
+    const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce || typeof performance === "undefined") { el.textContent = format(target); el.__countVal = target; return; }
+    const start = performance.now();
+    const dur = 600;
+    function step(now) {
+      const p = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - p, 3);
+      el.textContent = format(Math.round(prev + (target - prev) * eased));
+      if (p < 1) requestAnimationFrame(step);
+      else el.__countVal = target;
+    }
+    el.__countVal = prev;
+    requestAnimationFrame(step);
+  }
   function escapeHtml(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
@@ -147,7 +166,7 @@
 
     if (income === 0 && spent === 0) {
       ring.style.background = "var(--ring-track)";
-      ringAmount.textContent = "0";
+      animateCount(ringAmount, 0, fmtAmount);
       const name = monthName(currentFilters().month);
       ringSub.textContent = name ? t("ring_no_data", { month: name }) : t("ring_no_data_plain");
       legendSaved.textContent = t("ring_add_first");
@@ -155,14 +174,14 @@
     }
     if (income === 0) {
       ring.style.background = "var(--expense)";
-      ringAmount.textContent = fmtAmount(spent);
+      animateCount(ringAmount, spent, fmtAmount);
       ringSub.textContent = t("ring_no_income");
       legendSaved.textContent = "—";
       return;
     }
     if (spent > income) {
       ring.style.background = "var(--expense)";
-      ringAmount.textContent = fmtAmount(spent);
+      animateCount(ringAmount, spent, fmtAmount);
       ringSub.textContent = t("pct_income", { pct: Math.round((spent / income) * 100) });
       const over = spent - income;
       legendSaved.innerHTML = `<span class="saved-neg">🔴 ${escapeHtml(t("overspend"))} <b>−${fmtAmount(over)}</b></span>`;
@@ -188,11 +207,12 @@
     for (const row of rows) {
       const pct = total > 0 ? Math.round((row.total_uzs / total) * 100) : 0;
       const color = CATEGORY_COLORS[row.category_key] || DEFAULT_COLOR;
+      const catLabel = getLang() === "uz" ? row.category_label_uz : row.category_label_ru;
       const wrap = document.createElement("div");
       wrap.className = "cat-row";
       wrap.innerHTML = `
         <div class="cat-meta">
-          <span class="cat-name">${escapeHtml(label(row))}</span>
+          <span class="cat-name">${escapeHtml(catLabel)}</span>
           <span class="cat-amount">${fmtAmount(row.total_uzs)} · ${pct}%</span>
         </div>
         <div class="cat-bar"><div class="cat-fill" style="width:${pct}%;background:${color}"></div></div>`;
@@ -321,7 +341,7 @@
   function renderDebts(data) {
     const totals = data.totals || { lent_outstanding: 0, borrowed_outstanding: 0, net: 0 };
     const netEl = $("debtNet");
-    netEl.textContent = (totals.net >= 0 ? "+" : "−") + fmtAmount(Math.abs(totals.net));
+    animateCount(netEl, totals.net, (v) => (v >= 0 ? "+" : "−") + fmtAmount(Math.abs(v)));
     netEl.className = "debt-net-value " + (totals.net >= 0 ? "pos" : totals.net < 0 ? "neg" : "");
     $("debtLentTotal").textContent = fmtAmount(totals.lent_outstanding);
     $("debtBorrowedTotal").textContent = fmtAmount(totals.borrowed_outstanding);
@@ -342,6 +362,7 @@
       if (!res.ok) throw new Error();
       lastDebts = await res.json();
       debtsLoaded = true;
+      $("debtStatus").textContent = "";
       renderDebts(lastDebts);
     } catch {
       $("debtStatus").textContent = t("err_load_debts");
