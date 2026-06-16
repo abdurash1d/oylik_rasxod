@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Optional, List, Dict
+from typing import Any, Optional, List, Dict
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -228,6 +228,65 @@ class DebtTotals(BaseModel):
 class DebtsResponse(BaseModel):
     debts: List[DebtOut]
     totals: DebtTotals
+
+
+class SettingsOut(BaseModel):
+    display_name: Optional[str]
+    about: Optional[str]
+    savings_target_pct: int
+    emergency_months: int
+    category_budgets: Dict[str, int]
+
+
+class SettingsUpdate(BaseModel):
+    display_name: Optional[str] = Field(default=None, max_length=120)
+    about: Optional[str] = Field(default=None, max_length=1024)
+    savings_target_pct: Optional[int] = Field(default=None, ge=0, le=100)
+    emergency_months: Optional[int] = Field(default=None, ge=1, le=24)
+    category_budgets: Optional[Dict[str, int]] = None
+
+    @field_validator("category_budgets")
+    @classmethod
+    def validate_budgets(cls, value: Optional[Dict[str, int]]) -> Optional[Dict[str, int]]:
+        if value is None:
+            return value
+        valid = {k.value for k in CategoryKey}
+        cleaned: Dict[str, int] = {}
+        for key, limit in value.items():
+            if key not in valid:
+                raise ValueError("Неверная категория")
+            if limit is None or int(limit) <= 0:
+                continue  # a non-positive limit clears that category's budget
+            cleaned[key] = int(limit)
+        return cleaned
+
+
+class MonthStat(BaseModel):
+    year: int
+    month: int
+    income_total_uzs: int
+    expense_total_uzs: int
+    saved_uzs: int
+    savings_rate_pct: int
+
+
+class TrendResponse(BaseModel):
+    months: List[MonthStat]
+
+
+class Insight(BaseModel):
+    code: str
+    severity: str  # good | info | warn | bad
+    params: Dict[str, Any] = {}
+
+
+class InsightsResponse(BaseModel):
+    savings_rate_pct: int
+    savings_level: str  # good | ok | low | none
+    income_total_uzs: int
+    expense_total_uzs: int
+    saved_uzs: int
+    insights: List[Insight]
 
 
 def category_key_to_label(key: str) -> str:

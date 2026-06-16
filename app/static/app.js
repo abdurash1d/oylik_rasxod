@@ -39,12 +39,42 @@
   let lastSummary = null;
   let lastDebts = null;
   let debtsLoaded = false;
+  let lastInsights = null;
+  let lastTrend = null;
+  let insightsLoaded = false;
+  let lastSettings = null;
   let modalMode = null; // {kind:'debt',direction} | {kind:'repayment',debtId,person}
+
+  const INSIGHT_ICONS = {
+    overspend: "⚠️", savings_rate: "💰", top_category: "📊",
+    trend_up: "📈", trend_down: "📉", emergency_fund: "🛟",
+    debt_owe: "🔻", debt_lent: "🔺", doing_great: "🎉", no_data: "📭",
+    budget_over: "💸",
+  };
 
   // ---- Helpers ----
   const numFmt = new Intl.NumberFormat("ru-RU");
   const fmtAmount = (n) => numFmt.format(n || 0);
   const $ = (id) => document.getElementById(id);
+
+  // Count-up tween for hero numbers; no-op re-render when value is unchanged.
+  function animateCount(el, target, format) {
+    const prev = el.__countVal || 0;
+    if (prev === target) { el.textContent = format(target); el.__countVal = target; return; }
+    const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce || typeof performance === "undefined") { el.textContent = format(target); el.__countVal = target; return; }
+    const start = performance.now();
+    const dur = 600;
+    function step(now) {
+      const p = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - p, 3);
+      el.textContent = format(Math.round(prev + (target - prev) * eased));
+      if (p < 1) requestAnimationFrame(step);
+      else el.__countVal = target;
+    }
+    el.__countVal = prev;
+    requestAnimationFrame(step);
+  }
   function escapeHtml(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
@@ -62,6 +92,11 @@
   function monthName(month) {
     const arr = MONTHS[getLang()] || MONTHS.ru;
     return arr[(month - 1 + 12) % 12] || "";
+  }
+  function monthShort(month) { return monthName(month).slice(0, 3); }
+  function catLabelByKey(key) {
+    const c = categories.find((x) => x.key === key);
+    return c ? label(c) : key;
   }
 
   // ---- i18n application ----
@@ -83,6 +118,12 @@
     if (lastSummary) { renderRing(lastSummary); renderCategoryBars(lastSummary); }
     loadLedger();
     if (lastDebts) renderDebts(lastDebts);
+    if (lastInsights) renderInsights(lastInsights);
+    if (lastTrend) renderTrend(lastTrend);
+    renderGreeting();
+    updateThemeSeg();
+    updateLangSeg();
+    if (lastSettings && !$("tab-settings").hidden) fillSettingsForm();
   }
 
   // ---- Categories / income types ----
@@ -147,7 +188,7 @@
 
     if (income === 0 && spent === 0) {
       ring.style.background = "var(--ring-track)";
-      ringAmount.textContent = "0";
+      animateCount(ringAmount, 0, fmtAmount);
       const name = monthName(currentFilters().month);
       ringSub.textContent = name ? t("ring_no_data", { month: name }) : t("ring_no_data_plain");
       legendSaved.textContent = t("ring_add_first");
@@ -155,14 +196,14 @@
     }
     if (income === 0) {
       ring.style.background = "var(--expense)";
-      ringAmount.textContent = fmtAmount(spent);
+      animateCount(ringAmount, spent, fmtAmount);
       ringSub.textContent = t("ring_no_income");
       legendSaved.textContent = "—";
       return;
     }
     if (spent > income) {
       ring.style.background = "var(--expense)";
-      ringAmount.textContent = fmtAmount(spent);
+      animateCount(ringAmount, spent, fmtAmount);
       ringSub.textContent = t("pct_income", { pct: Math.round((spent / income) * 100) });
       const over = spent - income;
       legendSaved.innerHTML = `<span class="saved-neg">🔴 ${escapeHtml(t("overspend"))} <b>−${fmtAmount(over)}</b></span>`;
@@ -185,15 +226,25 @@
       list.innerHTML = `<div class="empty">${escapeHtml(t("no_expenses"))}</div>`;
       return;
     }
+    const budgets = (lastSettings && lastSettings.category_budgets) || {};
     for (const row of rows) {
       const pct = total > 0 ? Math.round((row.total_uzs / total) * 100) : 0;
       const color = CATEGORY_COLORS[row.category_key] || DEFAULT_COLOR;
+      const catLabel = getLang() === "uz" ? row.category_label_uz : row.category_label_ru;
+      const limit = budgets[row.category_key];
+      let amountText = `${fmtAmount(row.total_uzs)} · ${pct}%`;
+      let over = false;
+      if (limit) {
+        const bpct = Math.round((row.total_uzs / limit) * 100);
+        over = row.total_uzs > limit;
+        amountText = `${fmtAmount(row.total_uzs)} / ${fmtAmount(limit)} · ${bpct}%`;
+      }
       const wrap = document.createElement("div");
       wrap.className = "cat-row";
       wrap.innerHTML = `
         <div class="cat-meta">
-          <span class="cat-name">${escapeHtml(label(row))}</span>
-          <span class="cat-amount">${fmtAmount(row.total_uzs)} · ${pct}%</span>
+          <span class="cat-name">${escapeHtml(catLabel)}</span>
+          <span class="cat-amount${over ? " over" : ""}">${amountText}</span>
         </div>
         <div class="cat-bar"><div class="cat-fill" style="width:${pct}%;background:${color}"></div></div>`;
       list.appendChild(wrap);
@@ -279,6 +330,7 @@
 
   async function refreshReport() {
     await Promise.all([loadSummary(), loadLedger()]);
+    refreshInsightsIfLoaded();
   }
 
   // ---- Debts ----
@@ -321,7 +373,7 @@
   function renderDebts(data) {
     const totals = data.totals || { lent_outstanding: 0, borrowed_outstanding: 0, net: 0 };
     const netEl = $("debtNet");
-    netEl.textContent = (totals.net >= 0 ? "+" : "−") + fmtAmount(Math.abs(totals.net));
+    animateCount(netEl, totals.net, (v) => (v >= 0 ? "+" : "−") + fmtAmount(Math.abs(v)));
     netEl.className = "debt-net-value " + (totals.net >= 0 ? "pos" : totals.net < 0 ? "neg" : "");
     $("debtLentTotal").textContent = fmtAmount(totals.lent_outstanding);
     $("debtBorrowedTotal").textContent = fmtAmount(totals.borrowed_outstanding);
@@ -342,10 +394,108 @@
       if (!res.ok) throw new Error();
       lastDebts = await res.json();
       debtsLoaded = true;
+      $("debtStatus").textContent = "";
       renderDebts(lastDebts);
     } catch {
       $("debtStatus").textContent = t("err_load_debts");
     }
+  }
+
+  // ---- Insights / analytics ----
+  function insightContent(i) {
+    const p = i.params || {};
+    const tp = {};
+    // Amount-like params are formatted; {target} as a percent (e.g. 20) also
+    // formats safely through fmtAmount.
+    ["over", "saved", "amount", "target"].forEach((k) => { if (p[k] != null) tp[k] = fmtAmount(p[k]); });
+    if (p.pct != null) tp.pct = p.pct;
+    if (p.months != null) tp.months = p.months;
+    if (p.category_key != null) tp.label = catLabelByKey(p.category_key);
+    return {
+      icon: INSIGHT_ICONS[i.code] || "•",
+      title: t("ins_" + i.code + "_title", tp),
+      msg: t("ins_" + i.code + "_msg", tp),
+    };
+  }
+  function renderSavingsHero(data) {
+    const el = $("savingsRate");
+    const verdict = $("savingsVerdict");
+    if (data.savings_level === "none") {
+      el.textContent = "—";
+      el.className = "savings-rate";
+    } else {
+      el.textContent = data.savings_rate_pct + "%";
+      const cls = data.savings_level === "good" ? "good" : data.savings_level === "ok" ? "ok" : "low";
+      el.className = "savings-rate " + cls;
+    }
+    verdict.textContent = t("savings_" + data.savings_level);
+  }
+  function renderInsights(data) {
+    renderSavingsHero(data);
+    const list = $("insightList");
+    list.innerHTML = "";
+    for (const i of data.insights || []) {
+      const c = insightContent(i);
+      const card = document.createElement("div");
+      card.className = "insight-card sev-" + i.severity;
+      card.innerHTML = `
+        <div class="insight-icon">${c.icon}</div>
+        <div class="insight-body">
+          <div class="insight-title">${escapeHtml(c.title)}</div>
+          <div class="insight-msg">${escapeHtml(c.msg)}</div>
+        </div>`;
+      list.appendChild(card);
+    }
+  }
+  function renderTrend(data) {
+    const wrap = $("trendChart");
+    const months = data.months || [];
+    const max = Math.max(1, ...months.map((m) => Math.max(m.income_total_uzs, m.expense_total_uzs)));
+    const cols = months.map((m) => {
+      const incH = Math.round((m.income_total_uzs / max) * 100);
+      const expH = Math.round((m.expense_total_uzs / max) * 100);
+      return `
+        <div class="trend-col">
+          <div class="trend-bars">
+            <div class="trend-bar inc" style="height:${incH}%" title="${fmtAmount(m.income_total_uzs)}"></div>
+            <div class="trend-bar exp" style="height:${expH}%" title="${fmtAmount(m.expense_total_uzs)}"></div>
+          </div>
+          <div class="trend-label">${escapeHtml(monthShort(m.month))}</div>
+        </div>`;
+    }).join("");
+    wrap.innerHTML = `
+      <div class="trend-cols">${cols}</div>
+      <div class="trend-legend">
+        <span><i class="dot inc"></i>${escapeHtml(t("income"))}</span>
+        <span><i class="dot exp"></i>${escapeHtml(t("seg_expense"))}</span>
+      </div>`;
+  }
+  async function loadInsights() {
+    const { year, month } = currentFilters();
+    try {
+      const res = await fetch(`${apiBase}/insights?year=${year}&month=${month}`, { headers });
+      if (!res.ok) throw new Error();
+      lastInsights = await res.json();
+      insightsLoaded = true;
+      $("insightStatus").textContent = "";
+      renderInsights(lastInsights);
+    } catch {
+      $("insightStatus").textContent = t("err_load_insights");
+    }
+  }
+  async function loadTrend() {
+    const { year, month } = currentFilters();
+    try {
+      const res = await fetch(`${apiBase}/stats/trend?year=${year}&month=${month}&months=6`, { headers });
+      if (!res.ok) throw new Error();
+      lastTrend = await res.json();
+      renderTrend(lastTrend);
+    } catch {
+      /* trend is secondary; leave previous render in place */
+    }
+  }
+  function refreshInsightsIfLoaded() {
+    if (insightsLoaded) { loadInsights(); loadTrend(); }
   }
 
   // ---- Modal ----
@@ -459,8 +609,12 @@
           b.setAttribute("aria-selected", on ? "true" : "false");
         });
         $("tab-report").hidden = tab !== "report";
+        $("tab-insights").hidden = tab !== "insights";
         $("tab-debts").hidden = tab !== "debts";
+        $("tab-settings").hidden = true;
+        $("settingsBtn").classList.remove("active");
         if (tab === "debts" && !debtsLoaded) loadDebts();
+        if (tab === "insights") { loadInsights(); loadTrend(); }
       });
     });
   }
@@ -470,6 +624,34 @@
       setLang(getLang() === "ru" ? "uz" : "ru");
       rerenderAll();
     });
+  }
+
+  // ---- Theme (light / dark) ----
+  function effectiveTheme() {
+    const forced = document.documentElement.getAttribute("data-theme");
+    if (forced === "dark" || forced === "light") return forced;
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark" : "light";
+  }
+  function syncThemeIcon() {
+    // Show the icon representing the current mode: moon in dark, sun in light.
+    $("themeToggle").textContent = effectiveTheme() === "dark" ? "☾" : "☀";
+    if (document.getElementById("themeSeg")) updateThemeSeg();
+  }
+  function setupThemeToggle() {
+    syncThemeIcon();
+    $("themeToggle").addEventListener("click", () => {
+      const next = effectiveTheme() === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", next);
+      try { localStorage.setItem("theme", next); } catch (e) {}
+      syncThemeIcon();
+    });
+    // Keep the icon in sync if the system theme changes while in auto mode.
+    if (window.matchMedia) {
+      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+        if (!document.documentElement.getAttribute("data-theme")) syncThemeIcon();
+      });
+    }
   }
 
   function setupSegmented() {
@@ -593,6 +775,115 @@
     });
   }
 
+  // ---- Settings ----
+  function renderGreeting() {
+    const el = $("greeting");
+    const name = lastSettings && lastSettings.display_name;
+    if (name) { el.textContent = t("greeting", { name }); el.hidden = false; }
+    else { el.textContent = ""; el.hidden = true; }
+  }
+  function currentThemeMode() {
+    return (function () { try { return localStorage.getItem("theme"); } catch (e) { return null; } })() || "system";
+  }
+  function updateThemeSeg() {
+    const mode = currentThemeMode();
+    document.querySelectorAll("#themeSeg button").forEach((b) => b.classList.toggle("active", b.dataset.themeMode === mode));
+  }
+  function updateLangSeg() {
+    document.querySelectorAll("#langSeg button").forEach((b) => b.classList.toggle("active", b.dataset.langMode === getLang()));
+  }
+  function setThemeMode(mode) {
+    if (mode === "system") {
+      document.documentElement.removeAttribute("data-theme");
+      try { localStorage.removeItem("theme"); } catch (e) {}
+    } else {
+      document.documentElement.setAttribute("data-theme", mode);
+      try { localStorage.setItem("theme", mode); } catch (e) {}
+    }
+    syncThemeIcon();
+    updateThemeSeg();
+  }
+  function buildBudgetList() {
+    const list = $("budgetList");
+    list.innerHTML = "";
+    const budgets = (lastSettings && lastSettings.category_budgets) || {};
+    for (const c of categories) {
+      const row = document.createElement("label");
+      row.className = "budget-row";
+      row.innerHTML = `
+        <span>${escapeHtml(label(c))}</span>
+        <input type="number" min="0" step="1000" data-cat="${c.key}" value="${budgets[c.key] || ""}" placeholder="0" />`;
+      list.appendChild(row);
+    }
+  }
+  function fillSettingsForm() {
+    if (!lastSettings) return;
+    $("setName").value = lastSettings.display_name || "";
+    $("setAbout").value = lastSettings.about || "";
+    $("setSavings").value = lastSettings.savings_target_pct;
+    $("setEmergency").value = lastSettings.emergency_months;
+    buildBudgetList();
+    updateThemeSeg();
+    updateLangSeg();
+  }
+  async function loadSettings() {
+    try {
+      const res = await fetch(`${apiBase}/settings`, { headers });
+      if (!res.ok) throw new Error();
+      lastSettings = await res.json();
+      renderGreeting();
+      if (lastSummary) renderCategoryBars(lastSummary);
+    } catch {
+      /* settings are optional; ignore quietly */
+    }
+  }
+  async function saveSettings() {
+    const status = $("settingsStatus");
+    status.textContent = "";
+    const budgets = {};
+    document.querySelectorAll("#budgetList input[data-cat]").forEach((inp) => {
+      const v = Number(inp.value);
+      if (v > 0) budgets[inp.dataset.cat] = Math.round(v);
+    });
+    const payload = {
+      display_name: $("setName").value || null,
+      about: $("setAbout").value || null,
+      savings_target_pct: Number($("setSavings").value),
+      emergency_months: Number($("setEmergency").value),
+      category_budgets: budgets,
+    };
+    try {
+      const res = await fetch(`${apiBase}/settings`, { method: "PUT", headers, body: JSON.stringify(payload) });
+      if (!res.ok) throw new Error();
+      lastSettings = await res.json();
+      status.textContent = t("settings_saved");
+      renderGreeting();
+      refreshReport();
+    } catch {
+      status.textContent = t("err_save_settings");
+    }
+  }
+  async function openSettings() {
+    ["report", "insights", "debts"].forEach((p) => { $("tab-" + p).hidden = true; });
+    document.querySelectorAll(".tab-btn").forEach((b) => { b.classList.remove("active"); b.setAttribute("aria-selected", "false"); });
+    $("tab-settings").hidden = false;
+    $("settingsBtn").classList.add("active");
+    if (!lastSettings) await loadSettings();
+    fillSettingsForm();
+  }
+  function setupSettings() {
+    $("settingsBtn").addEventListener("click", openSettings);
+    $("saveSettingsBtn").addEventListener("click", saveSettings);
+    $("themeSeg").addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-theme-mode]");
+      if (b) setThemeMode(b.dataset.themeMode);
+    });
+    $("langSeg").addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-lang-mode]");
+      if (b && b.dataset.langMode !== getLang()) { setLang(b.dataset.langMode); rerenderAll(); }
+    });
+  }
+
   // ---- Init ----
   (function init() {
     applyStaticI18n();
@@ -602,14 +893,17 @@
 
     setupTabs();
     setupLangToggle();
+    setupThemeToggle();
     setupSegmented();
     setupForms();
     setupReload();
     setupLedgerActions();
     setupDebts();
     setupModal();
+    setupSettings();
 
     Promise.all([loadCategories(), loadIncomeTypes()]).then(() => loadLedger());
     loadSummary();
+    loadSettings();
   })();
 })();

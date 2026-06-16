@@ -3,27 +3,66 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#121D36" />
   <title>Финансы</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Sora:wght@500;600;700;800&display=swap" />
   <link rel="stylesheet" href="/static/styles.css" />
+  <script>
+    // Apply saved theme before first paint to avoid a flash.
+    try {
+      var savedTheme = localStorage.getItem("theme");
+      if (savedTheme === "dark" || savedTheme === "light") {
+        document.documentElement.setAttribute("data-theme", savedTheme);
+      }
+    } catch (e) {}
+  </script>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
   <div class="container">
 
-    <!-- Top bar: brand + language toggle -->
+    <!-- Top bar: brand + theme/language toggles -->
     <header class="topbar">
-      <div class="brand" data-i18n="app_title">Финансы</div>
-      <button id="langToggle" type="button" class="lang-toggle" aria-label="Language">RU</button>
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 48 48" width="30" height="30">
+            <defs>
+              <linearGradient id="lbg" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#1E477A"/><stop offset="1" stop-color="#111B33"/>
+              </linearGradient>
+              <linearGradient id="lln" x1="0" y1="1" x2="1" y2="0">
+                <stop offset="0" stop-color="#2dd4bf"/><stop offset="1" stop-color="#22d3ee"/>
+              </linearGradient>
+            </defs>
+            <rect x="2" y="2" width="44" height="44" rx="12" fill="url(#lbg)" stroke="rgba(125,211,252,0.22)"/>
+            <polyline points="11,32 20,24 27,28 37,14" fill="none" stroke="url(#lln)"
+              stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="37" cy="14" r="3" fill="#67e8f9"/>
+          </svg>
+        </span>
+        <span class="brand-text" data-i18n="app_title">Финансы</span>
+      </div>
+      <div class="topbar-actions">
+        <button id="settingsBtn" type="button" class="icon-toggle" aria-label="Settings">⚙</button>
+        <button id="themeToggle" type="button" class="icon-toggle" aria-label="Theme">☾</button>
+        <button id="langToggle" type="button" class="lang-toggle" aria-label="Language">RU</button>
+      </div>
     </header>
 
     <!-- Tabs -->
     <nav class="tabbar" role="tablist">
       <button type="button" class="tab-btn active" role="tab" aria-selected="true" data-tab="report" data-i18n="tab_report">Отчёт</button>
+      <button type="button" class="tab-btn" role="tab" aria-selected="false" data-tab="insights" data-i18n="tab_insights">Аналитика</button>
       <button type="button" class="tab-btn" role="tab" aria-selected="false" data-tab="debts" data-i18n="tab_debts">Долги</button>
     </nav>
 
     <!-- ===== REPORT TAB ===== -->
     <div id="tab-report" class="tab-panel" role="tabpanel">
+
+      <div class="greeting" id="greeting" hidden></div>
 
       <div class="month-picker">
         <input id="year" type="number" min="2020" max="2100" value="{{ year }}" aria-label="Год" />
@@ -115,6 +154,30 @@
 
     </div>
 
+    <!-- ===== ANALYTICS TAB ===== -->
+    <div id="tab-insights" class="tab-panel" role="tabpanel" hidden>
+
+      <section class="card savings-hero">
+        <div class="section-label" data-i18n="savings_title">НОРМА СБЕРЕЖЕНИЙ</div>
+        <div class="savings-rate" id="savingsRate">—</div>
+        <div class="savings-verdict" id="savingsVerdict"></div>
+      </section>
+
+      <section class="card">
+        <div class="section-label" data-i18n="trend_title">ДОХОД И РАСХОД · 6 МЕС</div>
+        <div id="trendChart" class="trend-chart"></div>
+      </section>
+
+      <section class="card">
+        <div class="section-label" data-i18n="recs_title">РЕКОМЕНДАЦИИ</div>
+        <p id="insightStatus" class="status" role="status"></p>
+        <div id="insightList" class="insight-list"></div>
+      </section>
+
+      <p class="disclaimer" data-i18n="advice_disclaimer">Это общие советы по бюджету, а не финансовая консультация.</p>
+
+    </div>
+
     <!-- ===== DEBTS TAB ===== -->
     <div id="tab-debts" class="tab-panel" role="tabpanel" hidden>
 
@@ -145,6 +208,64 @@
         <button type="button" class="btn-primary" id="addLentBtn">+ <span data-i18n="add_lent">Я дал в долг</span></button>
         <button type="button" class="btn-primary alt" id="addBorrowedBtn">+ <span data-i18n="add_borrowed">Я взял в долг</span></button>
       </div>
+
+    </div>
+    <!-- ===== SETTINGS PANEL ===== -->
+    <div id="tab-settings" class="tab-panel" role="tabpanel" hidden>
+
+      <section class="card settings-section">
+        <div class="section-label" data-i18n="settings_profile">ПРОФИЛЬ</div>
+        <label class="set-field">
+          <span data-i18n="f_display_name">Ваше имя</span>
+          <input id="setName" type="text" maxlength="120" />
+        </label>
+        <label class="set-field">
+          <span data-i18n="f_about">О себе</span>
+          <input id="setAbout" type="text" maxlength="1024" data-i18n-ph="optional" placeholder="необязательно" />
+        </label>
+      </section>
+
+      <section class="card settings-section">
+        <div class="section-label" data-i18n="settings_targets">ЦЕЛИ</div>
+        <div class="set-row-2">
+          <label class="set-field">
+            <span data-i18n="f_savings_target">Цель сбережений (%)</span>
+            <input id="setSavings" type="number" min="0" max="100" step="1" />
+          </label>
+          <label class="set-field">
+            <span data-i18n="f_emergency_months">Резерв (мес.)</span>
+            <input id="setEmergency" type="number" min="1" max="24" step="1" />
+          </label>
+        </div>
+      </section>
+
+      <section class="card settings-section">
+        <div class="section-label" data-i18n="settings_budgets">БЮДЖЕТЫ ПО КАТЕГОРИЯМ</div>
+        <div id="budgetList" class="budget-list"></div>
+        <p class="disclaimer" data-i18n="settings_budgets_hint">0 — без лимита</p>
+      </section>
+
+      <section class="card settings-section">
+        <div class="section-label" data-i18n="settings_appearance">ВНЕШНИЙ ВИД</div>
+        <div class="setting-row">
+          <span data-i18n="f_theme">Тема</span>
+          <div class="seg-mini" id="themeSeg">
+            <button type="button" data-theme-mode="system" data-i18n="theme_system">Системная</button>
+            <button type="button" data-theme-mode="light" data-i18n="theme_light">Светлая</button>
+            <button type="button" data-theme-mode="dark" data-i18n="theme_dark">Тёмная</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <span data-i18n="f_language">Язык</span>
+          <div class="seg-mini" id="langSeg">
+            <button type="button" data-lang-mode="ru">RU</button>
+            <button type="button" data-lang-mode="uz">UZ</button>
+          </div>
+        </div>
+      </section>
+
+      <button id="saveSettingsBtn" type="button" class="btn-primary" data-i18n="save">Сохранить</button>
+      <p id="settingsStatus" class="status" role="status"></p>
 
     </div>
   </div>

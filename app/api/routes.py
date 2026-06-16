@@ -10,6 +10,10 @@ from app.schemas import (
     DebtCreate,
     DebtsResponse,
     DebtUpdate,
+    InsightsResponse,
+    SettingsOut,
+    SettingsUpdate,
+    TrendResponse,
     ExpenseCreate,
     ExpenseOut,
     ExpenseUpdate,
@@ -37,6 +41,9 @@ from app.services.debts import (
     settle_debt,
     update_debt,
 )
+from app.services.insights import build_insights
+from app.services.settings import get_or_create_settings, settings_out, update_settings
+from app.services.stats import monthly_trend
 from app.services.expenses import (
     chart_summary,
     create_expense,
@@ -224,6 +231,56 @@ def get_chart_summary(
 ):
     user = owner_user(db, x_telegram_user_id, x_telegram_username)
     return chart_summary(db, user.id, year, month)
+
+
+# ===== Settings =====
+
+@router.get("/settings", response_model=SettingsOut)
+def get_settings(
+    x_telegram_user_id: Optional[int] = Header(default=None, alias="X-Telegram-User-Id"),
+    x_telegram_username: Optional[str] = Header(default=None, alias="X-Telegram-Username"),
+    db: Session = Depends(get_db),
+):
+    user = owner_user(db, x_telegram_user_id, x_telegram_username)
+    return settings_out(get_or_create_settings(db, user.id))
+
+
+@router.put("/settings", response_model=SettingsOut)
+def put_settings(
+    payload: SettingsUpdate,
+    x_telegram_user_id: Optional[int] = Header(default=None, alias="X-Telegram-User-Id"),
+    x_telegram_username: Optional[str] = Header(default=None, alias="X-Telegram-Username"),
+    db: Session = Depends(get_db),
+):
+    user = owner_user(db, x_telegram_user_id, x_telegram_username)
+    return settings_out(update_settings(db, user.id, payload))
+
+
+# ===== Insights & statistics =====
+
+@router.get("/insights", response_model=InsightsResponse)
+def get_insights(
+    year: int = Query(default_factory=lambda: datetime.now().year),
+    month: int = Query(default_factory=lambda: datetime.now().month, ge=1, le=12),
+    x_telegram_user_id: Optional[int] = Header(default=None, alias="X-Telegram-User-Id"),
+    x_telegram_username: Optional[str] = Header(default=None, alias="X-Telegram-Username"),
+    db: Session = Depends(get_db),
+):
+    user = owner_user(db, x_telegram_user_id, x_telegram_username)
+    return build_insights(db, user.id, year, month)
+
+
+@router.get("/stats/trend", response_model=TrendResponse)
+def get_trend(
+    year: int = Query(default_factory=lambda: datetime.now().year),
+    month: int = Query(default_factory=lambda: datetime.now().month, ge=1, le=12),
+    months: int = Query(default=6, ge=1, le=24),
+    x_telegram_user_id: Optional[int] = Header(default=None, alias="X-Telegram-User-Id"),
+    x_telegram_username: Optional[str] = Header(default=None, alias="X-Telegram-Username"),
+    db: Session = Depends(get_db),
+):
+    user = owner_user(db, x_telegram_user_id, x_telegram_username)
+    return monthly_trend(db, user.id, year, month, months)
 
 
 # ===== Debts (qarz) =====

@@ -4,6 +4,7 @@ from app.models.income_types import IncomeType, INCOME_LABELS_RU, INCOME_LABELS_
 from app.models.user import User
 from app.models.categories import CategoryKey, CATEGORY_LABELS_RU
 from app.models.debt import Debt, DebtRepayment
+from app.models.user_settings import UserSettings
 
 __all__ = [
     "User",
@@ -11,6 +12,7 @@ __all__ = [
     "Income",
     "Debt",
     "DebtRepayment",
+    "UserSettings",
     "CategoryKey",
     "CATEGORY_LABELS_RU",
     "IncomeType",
