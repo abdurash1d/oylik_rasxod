@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Optional, List, Dict
+from typing import Any, Optional, List, Dict
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -228,6 +228,34 @@ class DebtTotals(BaseModel):
 class DebtsResponse(BaseModel):
     debts: List[DebtOut]
     totals: DebtTotals
+
+
+class MonthStat(BaseModel):
+    year: int
+    month: int
+    income_total_uzs: int
+    expense_total_uzs: int
+    saved_uzs: int
+    savings_rate_pct: int
+
+
+class TrendResponse(BaseModel):
+    months: List[MonthStat]
+
+
+class Insight(BaseModel):
+    code: str
+    severity: str  # good | info | warn | bad
+    params: Dict[str, Any] = {}
+
+
+class InsightsResponse(BaseModel):
+    savings_rate_pct: int
+    savings_level: str  # good | ok | low | none
+    income_total_uzs: int
+    expense_total_uzs: int
+    saved_uzs: int
+    insights: List[Insight]
 
 
 def category_key_to_label(key: str) -> str:
