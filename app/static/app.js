@@ -42,12 +42,14 @@
   let lastInsights = null;
   let lastTrend = null;
   let insightsLoaded = false;
+  let lastSettings = null;
   let modalMode = null; // {kind:'debt',direction} | {kind:'repayment',debtId,person}
 
   const INSIGHT_ICONS = {
     overspend: "⚠️", savings_rate: "💰", top_category: "📊",
     trend_up: "📈", trend_down: "📉", emergency_fund: "🛟",
     debt_owe: "🔻", debt_lent: "🔺", doing_great: "🎉", no_data: "📭",
+    budget_over: "💸",
   };
 
   // ---- Helpers ----
@@ -118,6 +120,10 @@
     if (lastDebts) renderDebts(lastDebts);
     if (lastInsights) renderInsights(lastInsights);
     if (lastTrend) renderTrend(lastTrend);
+    renderGreeting();
+    updateThemeSeg();
+    updateLangSeg();
+    if (lastSettings && !$("tab-settings").hidden) fillSettingsForm();
   }
 
   // ---- Categories / income types ----
@@ -220,16 +226,25 @@
       list.innerHTML = `<div class="empty">${escapeHtml(t("no_expenses"))}</div>`;
       return;
     }
+    const budgets = (lastSettings && lastSettings.category_budgets) || {};
     for (const row of rows) {
       const pct = total > 0 ? Math.round((row.total_uzs / total) * 100) : 0;
       const color = CATEGORY_COLORS[row.category_key] || DEFAULT_COLOR;
       const catLabel = getLang() === "uz" ? row.category_label_uz : row.category_label_ru;
+      const limit = budgets[row.category_key];
+      let amountText = `${fmtAmount(row.total_uzs)} · ${pct}%`;
+      let over = false;
+      if (limit) {
+        const bpct = Math.round((row.total_uzs / limit) * 100);
+        over = row.total_uzs > limit;
+        amountText = `${fmtAmount(row.total_uzs)} / ${fmtAmount(limit)} · ${bpct}%`;
+      }
       const wrap = document.createElement("div");
       wrap.className = "cat-row";
       wrap.innerHTML = `
         <div class="cat-meta">
           <span class="cat-name">${escapeHtml(catLabel)}</span>
-          <span class="cat-amount">${fmtAmount(row.total_uzs)} · ${pct}%</span>
+          <span class="cat-amount${over ? " over" : ""}">${amountText}</span>
         </div>
         <div class="cat-bar"><div class="cat-fill" style="width:${pct}%;background:${color}"></div></div>`;
       list.appendChild(wrap);
@@ -596,6 +611,8 @@
         $("tab-report").hidden = tab !== "report";
         $("tab-insights").hidden = tab !== "insights";
         $("tab-debts").hidden = tab !== "debts";
+        $("tab-settings").hidden = true;
+        $("settingsBtn").classList.remove("active");
         if (tab === "debts" && !debtsLoaded) loadDebts();
         if (tab === "insights") { loadInsights(); loadTrend(); }
       });
@@ -619,6 +636,7 @@
   function syncThemeIcon() {
     // Show the icon representing the current mode: moon in dark, sun in light.
     $("themeToggle").textContent = effectiveTheme() === "dark" ? "☾" : "☀";
+    if (document.getElementById("themeSeg")) updateThemeSeg();
   }
   function setupThemeToggle() {
     syncThemeIcon();
@@ -757,6 +775,115 @@
     });
   }
 
+  // ---- Settings ----
+  function renderGreeting() {
+    const el = $("greeting");
+    const name = lastSettings && lastSettings.display_name;
+    if (name) { el.textContent = t("greeting", { name }); el.hidden = false; }
+    else { el.textContent = ""; el.hidden = true; }
+  }
+  function currentThemeMode() {
+    return (function () { try { return localStorage.getItem("theme"); } catch (e) { return null; } })() || "system";
+  }
+  function updateThemeSeg() {
+    const mode = currentThemeMode();
+    document.querySelectorAll("#themeSeg button").forEach((b) => b.classList.toggle("active", b.dataset.themeMode === mode));
+  }
+  function updateLangSeg() {
+    document.querySelectorAll("#langSeg button").forEach((b) => b.classList.toggle("active", b.dataset.langMode === getLang()));
+  }
+  function setThemeMode(mode) {
+    if (mode === "system") {
+      document.documentElement.removeAttribute("data-theme");
+      try { localStorage.removeItem("theme"); } catch (e) {}
+    } else {
+      document.documentElement.setAttribute("data-theme", mode);
+      try { localStorage.setItem("theme", mode); } catch (e) {}
+    }
+    syncThemeIcon();
+    updateThemeSeg();
+  }
+  function buildBudgetList() {
+    const list = $("budgetList");
+    list.innerHTML = "";
+    const budgets = (lastSettings && lastSettings.category_budgets) || {};
+    for (const c of categories) {
+      const row = document.createElement("label");
+      row.className = "budget-row";
+      row.innerHTML = `
+        <span>${escapeHtml(label(c))}</span>
+        <input type="number" min="0" step="1000" data-cat="${c.key}" value="${budgets[c.key] || ""}" placeholder="0" />`;
+      list.appendChild(row);
+    }
+  }
+  function fillSettingsForm() {
+    if (!lastSettings) return;
+    $("setName").value = lastSettings.display_name || "";
+    $("setAbout").value = lastSettings.about || "";
+    $("setSavings").value = lastSettings.savings_target_pct;
+    $("setEmergency").value = lastSettings.emergency_months;
+    buildBudgetList();
+    updateThemeSeg();
+    updateLangSeg();
+  }
+  async function loadSettings() {
+    try {
+      const res = await fetch(`${apiBase}/settings`, { headers });
+      if (!res.ok) throw new Error();
+      lastSettings = await res.json();
+      renderGreeting();
+      if (lastSummary) renderCategoryBars(lastSummary);
+    } catch {
+      /* settings are optional; ignore quietly */
+    }
+  }
+  async function saveSettings() {
+    const status = $("settingsStatus");
+    status.textContent = "";
+    const budgets = {};
+    document.querySelectorAll("#budgetList input[data-cat]").forEach((inp) => {
+      const v = Number(inp.value);
+      if (v > 0) budgets[inp.dataset.cat] = Math.round(v);
+    });
+    const payload = {
+      display_name: $("setName").value || null,
+      about: $("setAbout").value || null,
+      savings_target_pct: Number($("setSavings").value),
+      emergency_months: Number($("setEmergency").value),
+      category_budgets: budgets,
+    };
+    try {
+      const res = await fetch(`${apiBase}/settings`, { method: "PUT", headers, body: JSON.stringify(payload) });
+      if (!res.ok) throw new Error();
+      lastSettings = await res.json();
+      status.textContent = t("settings_saved");
+      renderGreeting();
+      refreshReport();
+    } catch {
+      status.textContent = t("err_save_settings");
+    }
+  }
+  async function openSettings() {
+    ["report", "insights", "debts"].forEach((p) => { $("tab-" + p).hidden = true; });
+    document.querySelectorAll(".tab-btn").forEach((b) => { b.classList.remove("active"); b.setAttribute("aria-selected", "false"); });
+    $("tab-settings").hidden = false;
+    $("settingsBtn").classList.add("active");
+    if (!lastSettings) await loadSettings();
+    fillSettingsForm();
+  }
+  function setupSettings() {
+    $("settingsBtn").addEventListener("click", openSettings);
+    $("saveSettingsBtn").addEventListener("click", saveSettings);
+    $("themeSeg").addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-theme-mode]");
+      if (b) setThemeMode(b.dataset.themeMode);
+    });
+    $("langSeg").addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-lang-mode]");
+      if (b && b.dataset.langMode !== getLang()) { setLang(b.dataset.langMode); rerenderAll(); }
+    });
+  }
+
   // ---- Init ----
   (function init() {
     applyStaticI18n();
@@ -773,8 +900,10 @@
     setupLedgerActions();
     setupDebts();
     setupModal();
+    setupSettings();
 
     Promise.all([loadCategories(), loadIncomeTypes()]).then(() => loadLedger());
     loadSummary();
+    loadSettings();
   })();
 })();

@@ -46,6 +46,7 @@
         <span class="brand-text" data-i18n="app_title">Финансы</span>
       </div>
       <div class="topbar-actions">
+        <button id="settingsBtn" type="button" class="icon-toggle" aria-label="Settings">⚙</button>
         <button id="themeToggle" type="button" class="icon-toggle" aria-label="Theme">☾</button>
         <button id="langToggle" type="button" class="lang-toggle" aria-label="Language">RU</button>
       </div>
@@ -60,6 +61,8 @@
 
     <!-- ===== REPORT TAB ===== -->
     <div id="tab-report" class="tab-panel" role="tabpanel">
+
+      <div class="greeting" id="greeting" hidden></div>
 
       <div class="month-picker">
         <input id="year" type="number" min="2020" max="2100" value="{{ year }}" aria-label="Год" />
@@ -205,6 +208,64 @@
         <button type="button" class="btn-primary" id="addLentBtn">+ <span data-i18n="add_lent">Я дал в долг</span></button>
         <button type="button" class="btn-primary alt" id="addBorrowedBtn">+ <span data-i18n="add_borrowed">Я взял в долг</span></button>
       </div>
+
+    </div>
+    <!-- ===== SETTINGS PANEL ===== -->
+    <div id="tab-settings" class="tab-panel" role="tabpanel" hidden>
+
+      <section class="card settings-section">
+        <div class="section-label" data-i18n="settings_profile">ПРОФИЛЬ</div>
+        <label class="set-field">
+          <span data-i18n="f_display_name">Ваше имя</span>
+          <input id="setName" type="text" maxlength="120" />
+        </label>
+        <label class="set-field">
+          <span data-i18n="f_about">О себе</span>
+          <input id="setAbout" type="text" maxlength="1024" data-i18n-ph="optional" placeholder="необязательно" />
+        </label>
+      </section>
+
+      <section class="card settings-section">
+        <div class="section-label" data-i18n="settings_targets">ЦЕЛИ</div>
+        <div class="set-row-2">
+          <label class="set-field">
+            <span data-i18n="f_savings_target">Цель сбережений (%)</span>
+            <input id="setSavings" type="number" min="0" max="100" step="1" />
+          </label>
+          <label class="set-field">
+            <span data-i18n="f_emergency_months">Резерв (мес.)</span>
+            <input id="setEmergency" type="number" min="1" max="24" step="1" />
+          </label>
+        </div>
+      </section>
+
+      <section class="card settings-section">
+        <div class="section-label" data-i18n="settings_budgets">БЮДЖЕТЫ ПО КАТЕГОРИЯМ</div>
+        <div id="budgetList" class="budget-list"></div>
+        <p class="disclaimer" data-i18n="settings_budgets_hint">0 — без лимита</p>
+      </section>
+
+      <section class="card settings-section">
+        <div class="section-label" data-i18n="settings_appearance">ВНЕШНИЙ ВИД</div>
+        <div class="setting-row">
+          <span data-i18n="f_theme">Тема</span>
+          <div class="seg-mini" id="themeSeg">
+            <button type="button" data-theme-mode="system" data-i18n="theme_system">Системная</button>
+            <button type="button" data-theme-mode="light" data-i18n="theme_light">Светлая</button>
+            <button type="button" data-theme-mode="dark" data-i18n="theme_dark">Тёмная</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <span data-i18n="f_language">Язык</span>
+          <div class="seg-mini" id="langSeg">
+            <button type="button" data-lang-mode="ru">RU</button>
+            <button type="button" data-lang-mode="uz">UZ</button>
+          </div>
+        </div>
+      </section>
+
+      <button id="saveSettingsBtn" type="button" class="btn-primary" data-i18n="save">Сохранить</button>
+      <p id="settingsStatus" class="status" role="status"></p>
 
     </div>
   </div>
