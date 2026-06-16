@@ -7,6 +7,9 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.schemas import (
     CategoriesResponse,
+    DebtCreate,
+    DebtsResponse,
+    DebtUpdate,
     ExpenseCreate,
     ExpenseOut,
     ExpenseUpdate,
@@ -16,6 +19,7 @@ from app.schemas import (
     LedgerResponse,
     IncomeTypesResponse,
     MonthlySummary,
+    RepaymentCreate,
     categories_payload,
     category_key_to_label,
     income_type_key_to_label_ru,
@@ -23,6 +27,15 @@ from app.schemas import (
     income_types_payload,
 )
 from app.services.auth import ensure_owner, get_or_create_user
+from app.services.debts import (
+    add_repayment,
+    create_debt,
+    delete_debt,
+    delete_repayment,
+    list_debts,
+    settle_debt,
+    update_debt,
+)
 from app.services.expenses import (
     chart_summary,
     create_expense,
@@ -208,3 +221,110 @@ def get_chart_summary(
 ):
     user = owner_user(db, x_telegram_user_id, x_telegram_username)
     return chart_summary(db, user.id, year, month)
+
+
+# ===== Debts (qarz) =====
+
+def _debt_value_error(exc: ValueError) -> HTTPException:
+    message = str(exc)
+    if "not found" in message:
+        return HTTPException(status_code=404, detail="Долг не найден")
+    if "exceeds outstanding" in message:
+        return HTTPException(status_code=400, detail="Сумма больше остатка долга")
+    return HTTPException(status_code=400, detail=message)
+
+
+@router.get("/debts", response_model=DebtsResponse)
+def get_debts(
+    x_telegram_user_id: Optional[int] = Header(default=None, alias="X-Telegram-User-Id"),
+    x_telegram_username: Optional[str] = Header(default=None, alias="X-Telegram-Username"),
+    db: Session = Depends(get_db),
+):
+    user = owner_user(db, x_telegram_user_id, x_telegram_username)
+    return list_debts(db, user.id)
+
+
+@router.post("/debts", response_model=DebtsResponse)
+def add_debt(
+    payload: DebtCreate,
+    x_telegram_user_id: Optional[int] = Header(default=None, alias="X-Telegram-User-Id"),
+    x_telegram_username: Optional[str] = Header(default=None, alias="X-Telegram-Username"),
+    db: Session = Depends(get_db),
+):
+    user = owner_user(db, x_telegram_user_id, x_telegram_username)
+    create_debt(db, user.id, payload)
+    return list_debts(db, user.id)
+
+
+@router.patch("/debts/{debt_id}", response_model=DebtsResponse)
+def edit_debt(
+    debt_id: int,
+    payload: DebtUpdate,
+    x_telegram_user_id: Optional[int] = Header(default=None, alias="X-Telegram-User-Id"),
+    x_telegram_username: Optional[str] = Header(default=None, alias="X-Telegram-Username"),
+    db: Session = Depends(get_db),
+):
+    user = owner_user(db, x_telegram_user_id, x_telegram_username)
+    try:
+        update_debt(db, user.id, debt_id, payload)
+    except ValueError as exc:
+        raise _debt_value_error(exc)
+    return list_debts(db, user.id)
+
+
+@router.delete("/debts/{debt_id}")
+def remove_debt(
+    debt_id: int,
+    x_telegram_user_id: Optional[int] = Header(default=None, alias="X-Telegram-User-Id"),
+    x_telegram_username: Optional[str] = Header(default=None, alias="X-Telegram-Username"),
+    db: Session = Depends(get_db),
+):
+    user = owner_user(db, x_telegram_user_id, x_telegram_username)
+    if not delete_debt(db, user.id, debt_id):
+        raise HTTPException(status_code=404, detail="Долг не найден")
+    return {"status": "ok"}
+
+
+@router.post("/debts/{debt_id}/repayments", response_model=DebtsResponse)
+def add_debt_repayment(
+    debt_id: int,
+    payload: RepaymentCreate,
+    x_telegram_user_id: Optional[int] = Header(default=None, alias="X-Telegram-User-Id"),
+    x_telegram_username: Optional[str] = Header(default=None, alias="X-Telegram-Username"),
+    db: Session = Depends(get_db),
+):
+    user = owner_user(db, x_telegram_user_id, x_telegram_username)
+    try:
+        add_repayment(db, user.id, debt_id, payload)
+    except ValueError as exc:
+        raise _debt_value_error(exc)
+    return list_debts(db, user.id)
+
+
+@router.post("/debts/{debt_id}/settle", response_model=DebtsResponse)
+def settle_debt_route(
+    debt_id: int,
+    x_telegram_user_id: Optional[int] = Header(default=None, alias="X-Telegram-User-Id"),
+    x_telegram_username: Optional[str] = Header(default=None, alias="X-Telegram-Username"),
+    db: Session = Depends(get_db),
+):
+    user = owner_user(db, x_telegram_user_id, x_telegram_username)
+    try:
+        settle_debt(db, user.id, debt_id, datetime.now().date())
+    except ValueError as exc:
+        raise _debt_value_error(exc)
+    return list_debts(db, user.id)
+
+
+@router.delete("/debts/{debt_id}/repayments/{repayment_id}")
+def remove_debt_repayment(
+    debt_id: int,
+    repayment_id: int,
+    x_telegram_user_id: Optional[int] = Header(default=None, alias="X-Telegram-User-Id"),
+    x_telegram_username: Optional[str] = Header(default=None, alias="X-Telegram-Username"),
+    db: Session = Depends(get_db),
+):
+    user = owner_user(db, x_telegram_user_id, x_telegram_username)
+    if not delete_repayment(db, user.id, debt_id, repayment_id):
+        raise HTTPException(status_code=404, detail="Платёж не найден")
+    return {"status": "ok"}

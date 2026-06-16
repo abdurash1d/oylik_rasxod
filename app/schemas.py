@@ -3,6 +3,8 @@ from typing import Optional, List, Dict
 
 from pydantic import BaseModel, Field, field_validator
 
+DEBT_DIRECTIONS = {"lent", "borrowed"}
+
 from app.models.categories import CategoryKey, CATEGORY_LABELS_RU, category_options
 from app.models.income_types import IncomeType, INCOME_LABELS_RU, INCOME_LABELS_UZ, income_type_options
 
@@ -137,6 +139,92 @@ class LedgerRow(BaseModel):
 
 class LedgerResponse(BaseModel):
     entries: List[LedgerRow]
+
+
+class DebtCreate(BaseModel):
+    counterparty: str = Field(min_length=1, max_length=255)
+    direction: str
+    principal_amount_uzs: int = Field(gt=0)
+    debt_date: date
+    note: Optional[str] = Field(default=None, max_length=1024)
+
+    @field_validator("counterparty")
+    @classmethod
+    def trim_counterparty(cls, value: str) -> str:
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("Укажите имя")
+        return trimmed
+
+    @field_validator("direction")
+    @classmethod
+    def validate_direction(cls, value: str) -> str:
+        if value not in DEBT_DIRECTIONS:
+            raise ValueError("Неверный тип долга")
+        return value
+
+
+class DebtUpdate(BaseModel):
+    counterparty: Optional[str] = Field(default=None, max_length=255)
+    direction: Optional[str] = None
+    principal_amount_uzs: Optional[int] = Field(default=None, gt=0)
+    debt_date: Optional[date] = None
+    note: Optional[str] = Field(default=None, max_length=1024)
+
+    @field_validator("counterparty")
+    @classmethod
+    def trim_counterparty(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("Укажите имя")
+        return trimmed
+
+    @field_validator("direction")
+    @classmethod
+    def validate_direction(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        if value not in DEBT_DIRECTIONS:
+            raise ValueError("Неверный тип долга")
+        return value
+
+
+class RepaymentCreate(BaseModel):
+    amount_uzs: int = Field(gt=0)
+    repayment_date: date
+    note: Optional[str] = Field(default=None, max_length=1024)
+
+
+class RepaymentOut(BaseModel):
+    id: int
+    amount_uzs: int
+    repayment_date: date
+    note: Optional[str]
+
+
+class DebtOut(BaseModel):
+    id: int
+    counterparty: str
+    direction: str
+    principal_amount_uzs: int
+    debt_date: date
+    note: Optional[str]
+    outstanding_uzs: int
+    settled: bool
+    repayments: List[RepaymentOut]
+
+
+class DebtTotals(BaseModel):
+    lent_outstanding: int
+    borrowed_outstanding: int
+    net: int
+
+
+class DebtsResponse(BaseModel):
+    debts: List[DebtOut]
+    totals: DebtTotals
 
 
 def category_key_to_label(key: str) -> str:

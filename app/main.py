@@ -10,7 +10,7 @@ from app.api.routes import router as api_router
 from app.core.config import settings
 from app.db.base import Base
 from app.db.session import engine, get_db
-from app.models import Expense, Income, User  # noqa: F401
+from app.models import Debt, DebtRepayment, Expense, Income, User  # noqa: F401
 from app.services.auth import ensure_owner, get_or_create_user
 from app.services.telegram import send_message, set_webhook
 
