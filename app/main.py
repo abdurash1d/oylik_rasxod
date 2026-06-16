@@ -10,7 +10,7 @@ from app.api.routes import router as api_router
 from app.core.config import settings
 from app.db.base import Base
 from app.db.session import engine, get_db
-from app.models import Expense, Income, User  # noqa: F401
+from app.models import Debt, DebtRepayment, Expense, Income, User  # noqa: F401
 from app.services.auth import ensure_owner, get_or_create_user
 from app.services.telegram import send_message, set_webhook
 
@@ -82,6 +82,12 @@ async def telegram_webhook(update: dict, db: Session = Depends(get_db)):
             "   3) «Oylik hisobot»da yil va oyni tanlab «Yangilash» bosing.\n"
             "4) В «Операции за месяц» можно исправить или удалить ошибочную запись.\n"
             "   4) «Oylik operatsiyalar»da noto‘g‘ri yozuvni tahrirlash yoki o‘chirish mumkin.\n"
+            "5) Во вкладке «Долги» ведите, кому вы дали в долг и кому должны, "
+            "с частичными платежами.\n"
+            "   5) «Qarzlar» bo‘limida kimga qarz bergan va kimdan qarz olganingizni, "
+            "qisman to‘lovlar bilan yuriting.\n"
+            "Язык интерфейса можно переключать кнопкой RU/UZ.\n"
+            "Interfeys tilini RU/UZ tugmasi bilan almashtirish mumkin.\n"
             "Сводка и график обновляются автоматически после изменений.\n"
             "O‘zgartirishdan keyin hisobot va grafik avtomatik yangilanadi.",
         )

@@ -5,10 +5,10 @@ from typing import List, Tuple
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models.categories import CATEGORY_LABELS_RU, CategoryKey
+from app.models.categories import CATEGORY_LABELS_RU, CATEGORY_LABELS_UZ, CategoryKey
 from app.models.expense import Expense
 from app.models.income import Income
-from app.models.income_types import INCOME_LABELS_RU, IncomeType
+from app.models.income_types import INCOME_LABELS_RU, INCOME_LABELS_UZ, IncomeType
 from app.schemas import (
     CategorySummary,
     ChartSummary,
@@ -76,6 +76,7 @@ def list_monthly_ledger(db: Session, user_id: int, year: int, month: int) -> Lis
             amount_uzs=item.amount_uzs,
             note=item.note,
             label_ru=CATEGORY_LABELS_RU[CategoryKey(item.category)],
+            label_uz=CATEGORY_LABELS_UZ[CategoryKey(item.category)],
             raw_key=item.category,
         )
         for item in expense_rows
@@ -87,6 +88,7 @@ def list_monthly_ledger(db: Session, user_id: int, year: int, month: int) -> Lis
             amount_uzs=item.amount_uzs,
             note=item.note,
             label_ru=INCOME_LABELS_RU[IncomeType(item.income_type)],
+            label_uz=INCOME_LABELS_UZ[IncomeType(item.income_type)],
             raw_key=item.income_type,
         )
         for item in income_rows
@@ -176,6 +178,7 @@ def monthly_summary(db: Session, user_id: int, year: int, month: int) -> Monthly
         CategorySummary(
             category_key=category,
             category_label_ru=CATEGORY_LABELS_RU[CategoryKey(category)],
+            category_label_uz=CATEGORY_LABELS_UZ[CategoryKey(category)],
             total_uzs=int(total or 0),
         )
         for category, total in rows

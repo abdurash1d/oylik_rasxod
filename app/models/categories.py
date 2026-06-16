@@ -28,8 +28,22 @@ CATEGORY_LABELS_RU = {
 }
 
 
+CATEGORY_LABELS_UZ = {
+    CategoryKey.TRANSPORTATION: "Transport",
+    CategoryKey.MARKET: "Market",
+    CategoryKey.HEALTH: "Sog‘liq",
+    CategoryKey.SHOPPING: "Xaridlar",
+    CategoryKey.PERSONAL_CARE: "Shaxsiy parvarish",
+    CategoryKey.MISCELLANEOUS: "Turli",
+    CategoryKey.FOOD_GROCERIES: "Oziq-ovqat",
+    CategoryKey.UTILITIES: "Kommunal to‘lovlar",
+    CategoryKey.HOUSING: "Uy-joy",
+    CategoryKey.OTHERS: "Boshqa",
+}
+
+
 def category_options():
     return [
-        {"key": key.value, "label_ru": label}
-        for key, label in CATEGORY_LABELS_RU.items()
+        {"key": key.value, "label_ru": CATEGORY_LABELS_RU[key], "label_uz": CATEGORY_LABELS_UZ[key]}
+        for key in CategoryKey
     ]

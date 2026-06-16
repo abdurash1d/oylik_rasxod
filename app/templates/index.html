@@ -3,501 +3,193 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
-  <title>Ежемесячные расходы</title>
+  <title>Финансы</title>
   <link rel="stylesheet" href="/static/styles.css" />
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
   <div class="container">
 
-    <!-- Month picker -->
+    <!-- Top bar: brand + language toggle -->
     <header class="topbar">
+      <div class="brand" data-i18n="app_title">Финансы</div>
+      <button id="langToggle" type="button" class="lang-toggle" aria-label="Language">RU</button>
+    </header>
+
+    <!-- Tabs -->
+    <nav class="tabbar" role="tablist">
+      <button type="button" class="tab-btn active" role="tab" aria-selected="true" data-tab="report" data-i18n="tab_report">Отчёт</button>
+      <button type="button" class="tab-btn" role="tab" aria-selected="false" data-tab="debts" data-i18n="tab_debts">Долги</button>
+    </nav>
+
+    <!-- ===== REPORT TAB ===== -->
+    <div id="tab-report" class="tab-panel" role="tabpanel">
+
       <div class="month-picker">
         <input id="year" type="number" min="2020" max="2100" value="{{ year }}" aria-label="Год" />
         <input id="month" type="number" min="1" max="12" value="{{ month }}" aria-label="Месяц" />
-        <button id="reloadBtn" type="button" class="btn-ghost">Обновить</button>
+        <button id="reloadBtn" type="button" class="btn-ghost" data-i18n="update">Обновить</button>
       </div>
-    </header>
 
-    <!-- Ring -->
-    <section class="ring-section">
-      <div class="ring" id="ring">
-        <div class="ring-inner">
-          <div class="ring-label">ПОТРАЧЕНО</div>
-          <div class="ring-amount" id="ringAmount">0</div>
-          <div class="ring-sub" id="ringSub">—</div>
+      <!-- Ring -->
+      <section class="ring-section">
+        <div class="ring" id="ring">
+          <div class="ring-inner">
+            <div class="ring-label" id="ringLabel" data-i18n="ring_spent">ПОТРАЧЕНО</div>
+            <div class="ring-amount" id="ringAmount">0</div>
+            <div class="ring-sub" id="ringSub">—</div>
+          </div>
         </div>
-      </div>
-      <div class="legend">
-        <span id="legendSaved">—</span>
-        <span>Доход <b id="legendIncome">0</b></span>
-      </div>
-    </section>
+        <div class="legend">
+          <span id="legendSaved">—</span>
+          <span><span data-i18n="income">Доход</span> <b id="legendIncome">0</b></span>
+        </div>
+      </section>
 
-    <!-- Categories -->
-    <section class="categories card">
-      <div class="section-label">РАСХОДЫ ПО КАТЕГОРИЯМ</div>
-      <div id="categoryList" class="category-bars"></div>
-    </section>
+      <!-- Categories -->
+      <section class="categories card">
+        <div class="section-label" data-i18n="categories_title">РАСХОДЫ ПО КАТЕГОРИЯМ</div>
+        <div id="categoryList" class="category-bars"></div>
+      </section>
 
-    <!-- Add (segmented Расход/Доход) -->
-    <section class="add">
-      <div class="segmented" role="tablist">
-        <button type="button" class="seg-btn active" role="tab" aria-selected="true" data-tab="expense">Расход</button>
-        <button type="button" class="seg-btn" role="tab" aria-selected="false" data-tab="income">Доход</button>
+      <!-- Add (segmented expense / income) -->
+      <section class="add">
+        <div class="segmented" role="tablist">
+          <button type="button" class="seg-btn active" role="tab" aria-selected="true" data-tab="expense" data-i18n="seg_expense">Расход</button>
+          <button type="button" class="seg-btn" role="tab" aria-selected="false" data-tab="income" data-i18n="seg_income">Доход</button>
+        </div>
+
+        <form id="expenseForm" class="form">
+          <label>
+            <span data-i18n="f_category">Категория</span>
+            <select id="category" required></select>
+          </label>
+          <div class="row">
+            <label class="grow">
+              <span data-i18n="f_amount">Сумма (сум)</span>
+              <input id="amount" type="number" min="1" step="1" required />
+            </label>
+            <label>
+              <span data-i18n="f_date">Дата</span>
+              <input id="expenseDate" type="date" required />
+            </label>
+          </div>
+          <label>
+            <span data-i18n="f_note">Заметка</span>
+            <input id="note" type="text" maxlength="1024" data-i18n-ph="optional" placeholder="необязательно" />
+          </label>
+          <button type="submit" class="btn-primary" data-i18n="save">Сохранить</button>
+          <p id="formStatus" class="status" role="status"></p>
+        </form>
+
+        <form id="incomeForm" class="form hidden">
+          <label>
+            <span data-i18n="f_income_type">Тип дохода</span>
+            <select id="incomeType" required></select>
+          </label>
+          <div class="row">
+            <label class="grow">
+              <span data-i18n="f_amount">Сумма (сум)</span>
+              <input id="incomeAmount" type="number" min="1" step="1" required />
+            </label>
+            <label>
+              <span data-i18n="f_date">Дата</span>
+              <input id="incomeDate" type="date" required />
+            </label>
+          </div>
+          <label>
+            <span data-i18n="f_note">Заметка</span>
+            <input id="incomeNote" type="text" maxlength="1024" data-i18n-ph="optional" placeholder="необязательно" />
+          </label>
+          <button type="submit" class="btn-primary" data-i18n="save">Сохранить</button>
+          <p id="incomeFormStatus" class="status" role="status"></p>
+        </form>
+      </section>
+
+      <!-- History -->
+      <section class="history card">
+        <div class="section-label" data-i18n="history_title">ИСТОРИЯ</div>
+        <p id="ledgerStatus" class="status" role="status"></p>
+        <div id="ledgerList"></div>
+      </section>
+
+    </div>
+
+    <!-- ===== DEBTS TAB ===== -->
+    <div id="tab-debts" class="tab-panel" role="tabpanel" hidden>
+
+      <section class="debt-summary card">
+        <div class="debt-net">
+          <span class="debt-net-label" data-i18n="debts_net">Чистый баланс</span>
+          <span class="debt-net-value" id="debtNet">0</span>
+        </div>
+        <div class="debt-net-breakdown">
+          <span class="pos"><span data-i18n="they_owe">Мне должны</span> <b id="debtLentTotal">0</b></span>
+          <span class="neg"><span data-i18n="i_owe">Я должен</span> <b id="debtBorrowedTotal">0</b></span>
+        </div>
+      </section>
+
+      <p id="debtStatus" class="status" role="status"></p>
+
+      <section class="card debt-group">
+        <div class="section-label" data-i18n="group_lent">МНЕ ДОЛЖНЫ</div>
+        <div id="debtListLent"></div>
+      </section>
+
+      <section class="card debt-group">
+        <div class="section-label" data-i18n="group_borrowed">Я ДОЛЖЕН</div>
+        <div id="debtListBorrowed"></div>
+      </section>
+
+      <div class="debt-actions">
+        <button type="button" class="btn-primary" id="addLentBtn">+ <span data-i18n="add_lent">Я дал в долг</span></button>
+        <button type="button" class="btn-primary alt" id="addBorrowedBtn">+ <span data-i18n="add_borrowed">Я взял в долг</span></button>
       </div>
 
-      <form id="expenseForm" class="form">
-        <label>
-          <span>Категория</span>
-          <select id="category" required></select>
+    </div>
+  </div>
+
+  <!-- ===== Modal (add debt / add repayment) ===== -->
+  <div id="modal" class="modal" hidden>
+    <div class="modal-backdrop" data-action="modal-close"></div>
+    <div class="modal-sheet" role="dialog" aria-modal="true">
+      <h2 class="modal-title" id="modalTitle"></h2>
+      <form id="modalForm" class="form">
+        <label id="modalPersonRow">
+          <span data-i18n="debt_person">Имя</span>
+          <input id="modalPerson" type="text" maxlength="255" />
         </label>
         <div class="row">
           <label class="grow">
-            <span>Сумма (сум)</span>
-            <input id="amount" type="number" min="1" step="1" required />
+            <span id="modalAmountLabel" data-i18n="f_amount">Сумма (сум)</span>
+            <input id="modalAmount" type="number" min="1" step="1" required />
           </label>
           <label>
-            <span>Дата</span>
-            <input id="expenseDate" type="date" required />
+            <span data-i18n="f_date">Дата</span>
+            <input id="modalDate" type="date" required />
           </label>
         </div>
         <label>
-          <span>Заметка</span>
-          <input id="note" type="text" maxlength="1024" placeholder="необязательно" />
+          <span data-i18n="f_note">Заметка</span>
+          <input id="modalNote" type="text" maxlength="1024" data-i18n-ph="optional" placeholder="необязательно" />
         </label>
-        <button type="submit" class="btn-primary">Сохранить</button>
-        <p id="formStatus" class="status"></p>
-      </form>
-
-      <form id="incomeForm" class="form hidden">
-        <label>
-          <span>Тип дохода</span>
-          <select id="incomeType" required></select>
-        </label>
-        <div class="row">
-          <label class="grow">
-            <span>Сумма (сум)</span>
-            <input id="incomeAmount" type="number" min="1" step="1" required />
-          </label>
-          <label>
-            <span>Дата</span>
-            <input id="incomeDate" type="date" required />
-          </label>
+        <div class="modal-buttons">
+          <button type="button" class="btn-ghost" data-action="modal-close" data-i18n="cancel">Отмена</button>
+          <button type="submit" class="btn-primary" data-i18n="add">Добавить</button>
         </div>
-        <label>
-          <span>Заметка</span>
-          <input id="incomeNote" type="text" maxlength="1024" placeholder="необязательно" />
-        </label>
-        <button type="submit" class="btn-primary">Сохранить</button>
-        <p id="incomeFormStatus" class="status"></p>
+        <p id="modalStatus" class="status" role="status"></p>
       </form>
-    </section>
-
-    <!-- History -->
-    <section class="history card">
-      <div class="section-label">ИСТОРИЯ</div>
-      <p id="ledgerStatus" class="status"></p>
-      <div id="ledgerList"></div>
-    </section>
-
+    </div>
   </div>
 
   <script>
-    // ---- Telegram WebApp init ----
-    const tg = window.Telegram.WebApp;
-    tg.ready();
-    tg.expand();
-
-    const apiBase = "{{ api_base }}";
-    const initDataUnsafe = tg.initDataUnsafe || {};
-    const user = initDataUnsafe.user || {};
-    const headers = {
-      "Content-Type": "application/json",
-      "X-Telegram-User-Id": user.id || "",
-      "X-Telegram-Username": user.username || "",
+    window.APP_CONFIG = {
+      apiBase: "{{ api_base }}",
+      year: {{ year }},
+      month: {{ month }},
     };
-
-    // ---- Constants ----
-    const CATEGORY_COLORS = {
-      food_groceries: "#0071e3",
-      market: "#f59e0b",
-      transportation: "#ff9f0a",
-      housing: "#34c759",
-      health: "#ff3b30",
-      shopping: "#af52de",
-      personal_care: "#ec4899",
-      utilities: "#06b6d4",
-      miscellaneous: "#94a3b8",
-      others: "#64748b",
-    };
-    const DEFAULT_COLOR = "#64748b";
-
-    // ---- State ----
-    let categories = [];
-    let incomeTypes = [];
-    let editingEntryKey = null;
-
-    // ---- Helpers ----
-    const ru = new Intl.NumberFormat("ru-RU");
-    function fmtAmount(n) { return ru.format(n || 0); }
-    function escapeHtml(s) {
-      return String(s ?? "").replace(/[&<>"']/g, c => ({
-        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-      }[c]));
-    }
-    function currentFilters() {
-      const year = Number(document.getElementById("year").value);
-      const month = Number(document.getElementById("month").value);
-      return { year, month };
-    }
-    function monthNameRu(month) {
-      // month is 1..12; new Date(year, monthIndex, 1) wants 0..11
-      try {
-        return new Intl.DateTimeFormat("ru-RU", { month: "long" }).format(new Date(2020, (month - 1), 1));
-      } catch {
-        return "";
-      }
-    }
-
-    // ---- Categories / income types ----
-    async function loadCategories() {
-      const res = await fetch(`${apiBase}/categories`);
-      if (!res.ok) {
-        document.getElementById("formStatus").textContent = "Не удалось загрузить категории.";
-        return;
-      }
-      const data = await res.json();
-      categories = data.categories || [];
-      const select = document.getElementById("category");
-      select.innerHTML = "";
-      for (const c of categories) {
-        const opt = document.createElement("option");
-        opt.value = c.key;
-        opt.textContent = c.label_ru;
-        select.appendChild(opt);
-      }
-    }
-    async function loadIncomeTypes() {
-      const res = await fetch(`${apiBase}/income-types`);
-      if (!res.ok) {
-        document.getElementById("incomeFormStatus").textContent = "Не удалось загрузить типы дохода.";
-        return;
-      }
-      const data = await res.json();
-      incomeTypes = data.income_types || [];
-      const select = document.getElementById("incomeType");
-      select.innerHTML = "";
-      for (const t of incomeTypes) {
-        const opt = document.createElement("option");
-        opt.value = t.key;
-        opt.textContent = t.label_ru; // Russian only, drop /label_uz
-        select.appendChild(opt);
-      }
-    }
-
-    // ---- Ring ----
-    function renderRing(summary) {
-      const ring = document.getElementById("ring");
-      const ringAmount = document.getElementById("ringAmount");
-      const ringSub = document.getElementById("ringSub");
-      const legendSaved = document.getElementById("legendSaved");
-      const legendIncome = document.getElementById("legendIncome");
-
-      const spent = summary.expense_total_uzs || 0;
-      const income = summary.income_total_uzs || 0;
-      const balance = summary.balance_uzs || 0;
-      legendIncome.textContent = fmtAmount(income);
-
-      if (income === 0 && spent === 0) {
-        ring.style.background = "var(--ring-track)";
-        ringAmount.textContent = "0";
-        const { month } = currentFilters();
-        const name = monthNameRu(month);
-        ringSub.textContent = name ? `Нет данных за ${name}` : "Нет данных";
-        legendSaved.innerHTML = "Добавьте первый расход";
-        return;
-      }
-      if (income === 0) {
-        ring.style.background = "var(--expense)";
-        ringAmount.textContent = fmtAmount(spent);
-        ringSub.textContent = "Доход не указан";
-        legendSaved.innerHTML = "—";
-        return;
-      }
-      if (spent > income) {
-        ring.style.background = "var(--expense)";
-        ringAmount.textContent = fmtAmount(spent);
-        const pctOver = Math.round((spent / income) * 100);
-        ringSub.textContent = `${pctOver}% дохода`;
-        const over = spent - income;
-        legendSaved.innerHTML = `<span class="saved-neg">🔴 Перерасход <b>−${fmtAmount(over)}</b></span>`;
-        return;
-      }
-      // normal
-      const pctSpent = Math.round((spent / income) * 100);
-      ring.style.background = `conic-gradient(var(--expense) 0 ${pctSpent}%, var(--income) ${pctSpent}% 100%)`;
-      ringAmount.textContent = fmtAmount(spent);
-      ringSub.textContent = `${pctSpent}% дохода`;
-      legendSaved.innerHTML = `<span class="saved-pos">🟢 Отложено <b>${fmtAmount(balance)}</b></span>`;
-    }
-
-    // ---- Category bars ----
-    function renderCategoryBars(summary) {
-      const list = document.getElementById("categoryList");
-      list.innerHTML = "";
-      const total = summary.expense_total_uzs || 0;
-      const rows = summary.by_category || [];
-      if (rows.length === 0) {
-        const empty = document.createElement("div");
-        empty.className = "empty";
-        empty.textContent = "Нет расходов за этот месяц.";
-        list.appendChild(empty);
-        return;
-      }
-      for (const row of rows) {
-        const pct = total > 0 ? Math.round((row.total_uzs / total) * 100) : 0;
-        const color = CATEGORY_COLORS[row.category_key] || DEFAULT_COLOR;
-        const wrap = document.createElement("div");
-        wrap.className = "cat-row";
-        wrap.innerHTML = `
-          <div class="cat-meta">
-            <span class="cat-name">${escapeHtml(row.category_label_ru)}</span>
-            <span class="cat-amount">${fmtAmount(row.total_uzs)} · ${pct}%</span>
-          </div>
-          <div class="cat-bar"><div class="cat-fill" style="width:${pct}%;background:${color}"></div></div>
-        `;
-        list.appendChild(wrap);
-      }
-    }
-
-    // ---- Summary loader ----
-    async function loadSummary() {
-      const { year, month } = currentFilters();
-      const res = await fetch(`${apiBase}/summary/month?year=${year}&month=${month}`, { headers });
-      if (!res.ok) {
-        document.getElementById("ledgerStatus").textContent = "Не удалось загрузить сводку.";
-        return;
-      }
-      const summary = await res.json();
-      renderRing(summary);
-      renderCategoryBars(summary);
-    }
-
-    // ---- Ledger ----
-    function entryTypeLabel(t) { return t === "income" ? "Доход" : "Расход"; }
-    function renderLedgerRow(entry) {
-      const key = `${entry.entry_type}:${entry.id}`;
-      const isEdit = editingEntryKey === key;
-      const isIncome = entry.entry_type === "income";
-
-      if (!isEdit) {
-        const amountClass = isIncome ? "amount income" : "amount expense";
-        const sign = isIncome ? "+" : "−";
-        return `
-          <div class="ledger-row">
-            <div class="ledger-main">
-              <span class="badge ${isIncome ? "income" : "expense"}">${entryTypeLabel(entry.entry_type)}</span>
-              <strong>${escapeHtml(entry.label_ru)}</strong>
-              <span class="ledger-date">${escapeHtml(entry.date)}</span>
-              ${entry.note ? `<span class="ledger-note">${escapeHtml(entry.note)}</span>` : ""}
-            </div>
-            <div class="ledger-side">
-              <span class="${amountClass}">${sign}${fmtAmount(entry.amount_uzs)}</span>
-              <div class="ledger-actions">
-                <button type="button" class="mini" data-action="start-edit" data-entry-key="${key}">✏️</button>
-                <button type="button" class="mini danger" data-action="delete"
-                        data-entry-key="${key}" data-entry-type="${entry.entry_type}" data-entry-id="${entry.id}">🗑</button>
-              </div>
-            </div>
-          </div>
-        `;
-      }
-      // edit
-      const options = isIncome ? incomeTypes : categories;
-      const optionsHtml = options
-        .map(o => `<option value="${o.key}" ${o.key === entry.raw_key ? "selected" : ""}>${escapeHtml(o.label_ru)}</option>`)
-        .join("");
-      return `
-        <div class="ledger-row editing">
-          <div class="ledger-edit">
-            <select id="editRawKey">${optionsHtml}</select>
-            <input id="editAmount" type="number" min="1" step="1" value="${escapeHtml(String(entry.amount_uzs))}" />
-            <input id="editDate" type="date" value="${escapeHtml(entry.date)}" />
-            <input id="editNote" type="text" maxlength="1024" value="${escapeHtml(entry.note || "")}" placeholder="заметка" />
-          </div>
-          <div class="ledger-actions">
-            <button type="button" class="mini success" data-action="save-edit"
-                    data-entry-key="${key}" data-entry-type="${entry.entry_type}" data-entry-id="${entry.id}">Сохранить</button>
-            <button type="button" class="mini" data-action="cancel-edit">Отмена</button>
-          </div>
-        </div>
-      `;
-    }
-    async function loadLedger() {
-      const { year, month } = currentFilters();
-      const res = await fetch(`${apiBase}/ledger/month?year=${year}&month=${month}`, { headers });
-      const list = document.getElementById("ledgerList");
-      if (!res.ok) {
-        list.innerHTML = `<div class="empty">Не удалось загрузить историю.</div>`;
-        return;
-      }
-      const data = await res.json();
-      const entries = data.entries || [];
-      if (entries.length === 0) {
-        list.innerHTML = `<div class="empty">Записей нет.</div>`;
-        return;
-      }
-      list.innerHTML = entries.map(renderLedgerRow).join("");
-    }
-
-    async function refreshAll() {
-      await Promise.all([loadSummary(), loadLedger()]);
-    }
-
-    // ---- Segmented toggle ----
-    function setupSegmented() {
-      const segBtns = document.querySelectorAll(".seg-btn");
-      segBtns.forEach(btn => {
-        btn.addEventListener("click", () => {
-          segBtns.forEach(b => b.classList.toggle("active", b === btn));
-          segBtns.forEach(b => b.setAttribute("aria-selected", b === btn ? "true" : "false"));
-          const tab = btn.dataset.tab;
-          document.getElementById("expenseForm").classList.toggle("hidden", tab !== "expense");
-          document.getElementById("incomeForm").classList.toggle("hidden", tab !== "income");
-        });
-      });
-    }
-
-    // ---- Form submit listeners ----
-    function setupForms() {
-      document.getElementById("expenseForm").addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const payload = {
-          category_key: document.getElementById("category").value,
-          amount_uzs: Number(document.getElementById("amount").value),
-          expense_date: document.getElementById("expenseDate").value,
-          note: document.getElementById("note").value || null,
-        };
-        const status = document.getElementById("formStatus");
-        status.textContent = "";
-        const res = await fetch(`${apiBase}/expenses`, {
-          method: "POST", headers, body: JSON.stringify(payload),
-        });
-        if (res.ok) {
-          status.textContent = "Сохранено.";
-          document.getElementById("amount").value = "";
-          document.getElementById("note").value = "";
-          await refreshAll();
-        } else {
-          status.textContent = "Не удалось сохранить расход.";
-        }
-      });
-      document.getElementById("incomeForm").addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const payload = {
-          income_type_key: document.getElementById("incomeType").value,
-          amount_uzs: Number(document.getElementById("incomeAmount").value),
-          income_date: document.getElementById("incomeDate").value,
-          note: document.getElementById("incomeNote").value || null,
-        };
-        const status = document.getElementById("incomeFormStatus");
-        status.textContent = "";
-        const res = await fetch(`${apiBase}/incomes`, {
-          method: "POST", headers, body: JSON.stringify(payload),
-        });
-        if (res.ok) {
-          status.textContent = "Сохранено.";
-          document.getElementById("incomeAmount").value = "";
-          document.getElementById("incomeNote").value = "";
-          await refreshAll();
-        } else {
-          status.textContent = "Не удалось сохранить доход.";
-        }
-      });
-    }
-
-    // ---- Reload button ----
-    function setupReload() {
-      document.getElementById("reloadBtn").addEventListener("click", () => refreshAll());
-    }
-
-    // ---- Ledger click delegation (edit / delete / save / cancel) ----
-    function setupLedgerActions() {
-      document.getElementById("ledgerList").addEventListener("click", async (e) => {
-        const btn = e.target.closest("button[data-action]");
-        if (!btn) return;
-        const action = btn.dataset.action;
-        const entryKey = btn.dataset.entryKey || editingEntryKey;
-        const status = document.getElementById("ledgerStatus");
-        status.textContent = "";
-
-        if (action === "start-edit") {
-          editingEntryKey = entryKey;
-          await loadLedger();
-          return;
-        }
-        if (action === "cancel-edit") {
-          editingEntryKey = null;
-          await loadLedger();
-          return;
-        }
-        if (action === "delete") {
-          if (!confirm("Удалить запись?")) return;
-          const entryType = btn.dataset.entryType;
-          const entryId = btn.dataset.entryId;
-          const endpoint = entryType === "income" ? "incomes" : "expenses";
-          const res = await fetch(`${apiBase}/${endpoint}/${entryId}`, { method: "DELETE", headers });
-          if (res.ok) {
-            editingEntryKey = null;
-            status.textContent = "Удалено.";
-            await refreshAll();
-          } else {
-            status.textContent = "Не удалось удалить.";
-          }
-          return;
-        }
-        if (action === "save-edit") {
-          const entryType = btn.dataset.entryType;
-          const entryId = btn.dataset.entryId;
-          const endpoint = entryType === "income" ? "incomes" : "expenses";
-          const rawKey = document.getElementById("editRawKey").value;
-          const amount = Number(document.getElementById("editAmount").value);
-          const dateVal = document.getElementById("editDate").value;
-          const noteVal = document.getElementById("editNote").value || null;
-          const payload = entryType === "income"
-            ? { income_type_key: rawKey, amount_uzs: amount, income_date: dateVal, note: noteVal }
-            : { category_key: rawKey, amount_uzs: amount, expense_date: dateVal, note: noteVal };
-          const res = await fetch(`${apiBase}/${endpoint}/${entryId}`, {
-            method: "PATCH", headers, body: JSON.stringify(payload),
-          });
-          if (res.ok) {
-            editingEntryKey = null;
-            status.textContent = "Сохранено.";
-            await refreshAll();
-          } else {
-            status.textContent = "Не удалось сохранить изменения.";
-          }
-          return;
-        }
-      });
-    }
-
-    // ---- Init ----
-    (async function init() {
-      const today = new Date().toISOString().slice(0, 10);
-      document.getElementById("expenseDate").value = today;
-      document.getElementById("incomeDate").value = today;
-
-      setupSegmented();
-      setupForms();
-      setupReload();
-      setupLedgerActions();
-
-      await loadCategories();
-      await loadIncomeTypes();
-      await refreshAll();
-    })();
   </script>
+  <script src="/static/i18n.js" defer></script>
+  <script src="/static/app.js" defer></script>
 </body>
 </html>
