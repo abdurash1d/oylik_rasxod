@@ -1,45 +1,45 @@
 /* ===== Design tokens ===== */
-/* Turquoise-tinted theme. Light = pale turquoise, dark = dark turquoise.
+/* Navy-blue theme. Light = pale blue, dark = deep navy (#1A3A5F).
    Theme follows the system by default; an explicit data-theme on <html>
    (set by the toggle) overrides it and is persisted in localStorage. */
 :root {
-  --bg: #e8f4f4;
+  --bg: #eaf1f9;
   --surface: #ffffff;
-  --surface-2: #d7ebeb;
-  --border: #c5dedd;
-  --text: #0f2b2b;
-  --muted: #5c7e7e;
+  --surface-2: #dce7f4;
+  --border: #cbdcef;
+  --text: #13243a;
+  --muted: #5a728f;
   --brand: #0d9488;
   --brand-strong: #0f766e;
   --income: #16a34a;
   --expense: #e11d48;
-  --ring-track: #c5dedd;
-  --shadow: 0 4px 14px rgba(13, 59, 59, 0.08);
+  --ring-track: #cbdcef;
+  --shadow: 0 4px 14px rgba(26, 58, 95, 0.08);
   --radius: 12px;
   --on-brand: #ffffff;
 }
 
-/* Shared dark-turquoise tokens (applied for system-dark and manual dark). */
+/* Shared deep-navy tokens (applied for system-dark and manual dark). */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
-    --bg: #0e3a3a;
-    --surface: #114545;
-    --surface-2: #17514f;
-    --border: #205e5c;
-    --text: #e3f1f0;
-    --muted: #8fb4b2;
-    --ring-track: #205e5c;
+    --bg: #1a3a5f;
+    --surface: #21456e;
+    --surface-2: #294f7b;
+    --border: #345a85;
+    --text: #e6eef7;
+    --muted: #9fb4cd;
+    --ring-track: #345a85;
     --shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0e3a3a;
-  --surface: #114545;
-  --surface-2: #17514f;
-  --border: #205e5c;
-  --text: #e3f1f0;
-  --muted: #8fb4b2;
-  --ring-track: #205e5c;
+  --bg: #1a3a5f;
+  --surface: #21456e;
+  --surface-2: #294f7b;
+  --border: #345a85;
+  --text: #e6eef7;
+  --muted: #9fb4cd;
+  --ring-track: #345a85;
   --shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
 }
 
