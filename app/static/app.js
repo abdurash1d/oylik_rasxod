@@ -37,6 +37,7 @@
   let incomeTypes = [];
   let editingEntryKey = null;
   let lastSummary = null;
+  let lastLedger = [];
   let lastDebts = null;
   let debtsLoaded = false;
   let lastInsights = null;
@@ -116,7 +117,7 @@
     fillCategorySelect();
     fillIncomeSelect();
     if (lastSummary) { renderRing(lastSummary); renderCategoryBars(lastSummary); }
-    loadLedger();
+    renderLedgerList(lastLedger);
     if (lastDebts) renderDebts(lastDebts);
     if (lastInsights) renderInsights(lastInsights);
     if (lastTrend) renderTrend(lastTrend);
@@ -313,24 +314,47 @@
         </div>
       </div>`;
   }
+  function renderLedgerList(entries) {
+    const list = $("ledgerList");
+    list.innerHTML = (entries && entries.length)
+      ? entries.map(renderLedgerRow).join("")
+      : `<div class="empty">${escapeHtml(t("no_records"))}</div>`;
+  }
   async function loadLedger() {
     const { year, month } = currentFilters();
-    const list = $("ledgerList");
     try {
       const res = await fetch(`${apiBase}/ledger/month?year=${year}&month=${month}`, { headers });
       if (!res.ok) throw new Error();
-      const entries = (await res.json()).entries || [];
-      list.innerHTML = entries.length === 0
-        ? `<div class="empty">${escapeHtml(t("no_records"))}</div>`
-        : entries.map(renderLedgerRow).join("");
+      lastLedger = (await res.json()).entries || [];
+      renderLedgerList(lastLedger);
     } catch {
-      list.innerHTML = `<div class="empty">${escapeHtml(t("err_load_history"))}</div>`;
+      $("ledgerList").innerHTML = `<div class="empty">${escapeHtml(t("err_load_history"))}</div>`;
     }
   }
 
   async function refreshReport() {
     await Promise.all([loadSummary(), loadLedger()]);
     refreshInsightsIfLoaded();
+  }
+
+  // Single round-trip for everything the first paint of the report needs.
+  async function loadBootstrap() {
+    const { year, month } = currentFilters();
+    try {
+      const res = await fetch(`${apiBase}/bootstrap?year=${year}&month=${month}`, { headers });
+      if (!res.ok) throw new Error();
+      const d = await res.json();
+      categories = d.categories || []; fillCategorySelect();
+      incomeTypes = d.income_types || []; fillIncomeSelect();
+      lastSettings = d.settings || null; renderGreeting();
+      lastSummary = d.summary; renderRing(lastSummary); renderCategoryBars(lastSummary);
+      lastLedger = d.ledger || []; renderLedgerList(lastLedger);
+    } catch {
+      // Fallback to individual loaders if bootstrap is unavailable.
+      Promise.all([loadCategories(), loadIncomeTypes()]).then(() => loadLedger());
+      loadSummary();
+      loadSettings();
+    }
   }
 
   // ---- Debts ----
@@ -902,8 +926,6 @@
     setupModal();
     setupSettings();
 
-    Promise.all([loadCategories(), loadIncomeTypes()]).then(() => loadLedger());
-    loadSummary();
-    loadSettings();
+    loadBootstrap();
   })();
 })();

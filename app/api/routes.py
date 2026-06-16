@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.schemas import (
+    BootstrapResponse,
     CategoriesResponse,
     DebtCreate,
     DebtsResponse,
@@ -69,6 +70,25 @@ def owner_user(
         raise HTTPException(status_code=400, detail="Отсутствует заголовок X-Telegram-User-Id")
     ensure_owner(x_telegram_user_id)
     return get_or_create_user(db, x_telegram_user_id, x_telegram_username)
+
+
+@router.get("/bootstrap", response_model=BootstrapResponse)
+def get_bootstrap(
+    year: int = Query(default_factory=lambda: datetime.now().year),
+    month: int = Query(default_factory=lambda: datetime.now().month, ge=1, le=12),
+    x_telegram_user_id: Optional[int] = Header(default=None, alias="X-Telegram-User-Id"),
+    x_telegram_username: Optional[str] = Header(default=None, alias="X-Telegram-Username"),
+    db: Session = Depends(get_db),
+):
+    """Everything the mini-app needs on first load, in a single round trip."""
+    user = owner_user(db, x_telegram_user_id, x_telegram_username)
+    return BootstrapResponse(
+        categories=categories_payload().categories,
+        income_types=income_types_payload().income_types,
+        settings=settings_out(get_or_create_settings(db, user.id)),
+        summary=monthly_summary(db, user.id, year, month),
+        ledger=list_monthly_ledger(db, user.id, year, month),
+    )
 
 
 @router.get("/categories", response_model=CategoriesResponse)

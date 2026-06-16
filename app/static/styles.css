@@ -13,8 +13,8 @@
   --bg-glow-2: rgba(56, 130, 246, 0.18);
   --bg-glow-3: rgba(34, 211, 238, 0.12);
 
-  --surface: rgba(26, 58, 95, 0.45);
-  --surface-2: rgba(41, 79, 123, 0.45);
+  --surface: rgba(26, 58, 95, 0.78);
+  --surface-2: rgba(34, 69, 110, 0.62);
   --surface-solid: #1a3a5f;
   --border: rgba(125, 211, 252, 0.14);
   --border-strong: rgba(125, 211, 252, 0.30);
@@ -52,8 +52,8 @@
     --bg-glow-1: rgba(45, 212, 191, 0.16);
     --bg-glow-2: rgba(56, 130, 246, 0.14);
     --bg-glow-3: rgba(34, 211, 238, 0.10);
-    --surface: rgba(255, 255, 255, 0.78);
-    --surface-2: rgba(255, 255, 255, 0.58);
+    --surface: rgba(255, 255, 255, 0.92);
+    --surface-2: rgba(255, 255, 255, 0.74);
     --surface-solid: #ffffff;
     --border: rgba(18, 29, 54, 0.10);
     --border-strong: rgba(18, 29, 54, 0.18);
@@ -75,8 +75,8 @@
   --bg-glow-1: rgba(45, 212, 191, 0.16);
   --bg-glow-2: rgba(56, 130, 246, 0.14);
   --bg-glow-3: rgba(34, 211, 238, 0.10);
-  --surface: rgba(255, 255, 255, 0.78);
-  --surface-2: rgba(255, 255, 255, 0.58);
+  --surface: rgba(255, 255, 255, 0.92);
+  --surface-2: rgba(255, 255, 255, 0.74);
   --surface-solid: #ffffff;
   --border: rgba(18, 29, 54, 0.10);
   --border-strong: rgba(18, 29, 54, 0.18);
@@ -117,8 +117,8 @@ body::before {
     radial-gradient(40% 50% at 18% 12%, var(--bg-glow-1), transparent 70%),
     radial-gradient(45% 55% at 88% 8%, var(--bg-glow-2), transparent 72%),
     radial-gradient(50% 60% at 60% 30%, var(--bg-glow-3), transparent 75%);
-  filter: blur(10px);
-  animation: aurora 18s ease-in-out infinite alternate;
+  animation: aurora 24s ease-in-out infinite alternate;
+  will-change: transform;
   pointer-events: none;
 }
 /* Fine grain overlay for texture */
@@ -173,8 +173,6 @@ input, select, button, textarea { font-family: inherit; }
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
   cursor: pointer;
   box-shadow: var(--inset-hi);
   transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease;
@@ -195,8 +193,6 @@ input, select, button, textarea { font-family: inherit; }
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 5px;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
   box-shadow: var(--inset-hi);
 }
 .tab-btn {
@@ -246,8 +242,6 @@ input, select, button, textarea { font-family: inherit; }
   font-size: 14px;
   font-variant-numeric: tabular-nums;
   text-align: center;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 .btn-ghost {
   background: var(--surface);
@@ -259,8 +253,6 @@ input, select, button, textarea { font-family: inherit; }
   font-weight: 600;
   cursor: pointer;
   margin-left: auto;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   transition: transform 0.12s ease, border-color 0.15s ease;
 }
 .btn-ghost:hover { border-color: var(--border-strong); }
@@ -272,8 +264,6 @@ input, select, button, textarea { font-family: inherit; }
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow), var(--inset-hi);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
 }
 .card { padding: 16px; }
 
@@ -379,8 +369,6 @@ input, select, button, textarea { font-family: inherit; }
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 4px;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
 }
 .seg-btn {
   flex: 1;

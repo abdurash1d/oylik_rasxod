@@ -261,6 +261,14 @@ class SettingsUpdate(BaseModel):
         return cleaned
 
 
+class BootstrapResponse(BaseModel):
+    categories: List[Dict[str, str]]
+    income_types: List[IncomeTypeItem]
+    settings: SettingsOut
+    summary: MonthlySummary
+    ledger: List[LedgerRow]
+
+
 class MonthStat(BaseModel):
     year: int
     month: int
